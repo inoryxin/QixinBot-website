@@ -291,13 +291,50 @@ let storeEntries = []
 async function loadStore() {
   storeEntries = (await api('/api/registry')).entries
   await loadCats()
+  stPage = 1
   renderStore()
   renderCats()
 }
 let cats = {}
 async function loadCats() { cats = await api('/api/categories') }
+let stPage = 1
+const ST_PAGE_SIZE = 20
+function storeView() {
+  const q = ($('#stSearch')?.value ?? '').trim().toLowerCase()
+  const cat = $('#stCat')?.value ?? 'all'
+  const sort = $('#stSort')?.value ?? 'default'
+  let idxs = storeEntries.map((e, i) => i).filter(i => {
+    const e = storeEntries[i]
+    if (cat !== 'all' && (e.category ?? 'other') !== cat) return false
+    if (!q) return true
+    return [e.name, e.id, e.description, ...(e.tags ?? [])].join(' ').toLowerCase().includes(q)
+  })
+  if (sort === 'id') idxs.sort((a, b) => storeEntries[a].id.localeCompare(storeEntries[b].id))
+  if (sort === 'name') idxs.sort((a, b) => (storeEntries[a].name ?? '').localeCompare(storeEntries[b].name ?? '', 'zh-Hans-CN'))
+  if (sort === 'version') idxs.sort((a, b) => (storeEntries[b].version ?? '').localeCompare(storeEntries[a].version ?? ''))
+  return idxs
+}
 function renderStore() {
-  $('#storeTable tbody').innerHTML = storeEntries.map((e, i) => `
+  const sel = $('#stCat')
+  if (sel) {
+    const cur = sel.value
+    sel.innerHTML = '<option value="all">全部分类</option>' +
+      Object.entries(cats).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')
+    if ([...sel.options].some(o => o.value === cur)) sel.value = cur
+  }
+  const idxs = storeView()
+  const totalPages = Math.max(1, Math.ceil(idxs.length / ST_PAGE_SIZE))
+  if (stPage > totalPages) stPage = totalPages
+  const pageIdx = idxs.slice((stPage - 1) * ST_PAGE_SIZE, stPage * ST_PAGE_SIZE)
+  $('#stCount').textContent = `共 ${idxs.length} 条`
+  $('#stPager').innerHTML = totalPages > 1 ? `
+    <button class="act" ${stPage === 1 ? 'disabled' : ''} onclick="stGo(${stPage - 1})">‹ 上一页</button>
+    ${Array.from({ length: totalPages }, (_, p) => `<button class="act ${p + 1 === stPage ? 'primary' : ''}" onclick="stGo(${p + 1})">${p + 1}</button>`).join(' ')}
+    <button class="act" ${stPage === totalPages ? 'disabled' : ''} onclick="stGo(${stPage + 1})">下一页 ›</button>
+    <span class="muted">第 ${stPage} / ${totalPages} 页 · 每页 ${ST_PAGE_SIZE} 条</span>` : ''
+  $('#storeTable tbody').innerHTML = pageIdx.map((i) => {
+    const e = storeEntries[i]
+    return `
     <tr>
       <td><b>${e.id}</b><br><span class="pill ${e.tier === 'official' ? 'pill-gt' : ''}" style="${e.tier === 'official' ? '' : 'background:#d2992222;color:#d29922'}">${e.tier === 'official' ? '官方' : '第三方'}</span></td>
       <td><input value="${(e.name ?? '').replaceAll('"', '&quot;')}" style="width:130px" onchange="editEntry(${i},'name',this.value)"></td>
