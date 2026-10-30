@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QixinBot 插件商店管理台</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; background: #0d1117; color: #e6edf3; }
+  header { display: flex; align-items: center; gap: 16px; padding: 14px 24px; background: #010409; border-bottom: 1px solid #21262d; position: sticky; top: 0; z-index: 5; }
+  header h1 { font-size: 18px; margin: 0; }
+  header .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+  .ok { background: #3fb950; } .bad { background: #f85149; } .warn { background: #d29922; }
+  nav { margin-left: auto; display: flex; gap: 6px; }
+  nav button { background: transparent; border: 1px solid #30363d; color: #8b949e; border-radius: 8px; padding: 7px 14px; cursor: pointer; font-size: 13.5px; }
+  nav button.active { background: #1f6feb22; border-color: #1f6feb; color: #58a6ff; }
+  main { max-width: 1280px; margin: 0 auto; padding: 20px 24px 60px; }
+  .panel { background: #161b22; border: 1px solid #21262d; border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+  h2 { font-size: 16px; margin: 0 0 12px; color: #c9d1d9; }
+  .muted { color: #8b949e; font-size: 12.5px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #21262d; vertical-align: top; }
+  th { color: #8b949e; font-weight: 600; }
+  input, select, textarea { background: #0d1117; border: 1px solid #30363d; color: #e6edf3; border-radius: 8px; padding: 6px 10px; font-size: 13px; font-family: inherit; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: #1f6feb; }
+  button.act { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+  button.act:hover { border-color: #8b949e; }
+  button.primary { background: #238636; border-color: #2ea043; color: #fff; font-weight: 600; }
+  button.primary:hover { background: #2ea043; }
+  button.danger { background: #da3633; border-color: #f85149; color: #fff; }
+  button.danger:hover { background: #f85149; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .qcard { border: 1px solid #21262d; border-radius: 10px; padding: 14px; margin-bottom: 12px; background: #0d1117; cursor: pointer; }
+  .qcard:hover { border-color: #388bfd; }
+  .verdict-ok { color: #3fb950; font-weight: 700; }
+  .verdict-concern { color: #d29922; font-weight: 700; }
+  .check-ok::before { content: '✓ '; color: #3fb950; }
+  .check-bad::before { content: '✗ '; color: #f85149; }
+  pre { background: #010409; border: 1px solid #21262d; border-radius: 8px; padding: 12px; overflow: auto; max-height: 420px; font-size: 12px; line-height: 1.5; }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
+  .pill-gh { background: #1f6feb22; color: #58a6ff; }
+  .pill-gt { background: #23863622; color: #3fb950; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .toast { position: fixed; bottom: 24px; right: 24px; background: #238636; color: #fff; padding: 10px 18px; border-radius: 10px; display: none; font-size: 14px; z-index: 20; }
+  .toast.err { background: #da3633; }
+  .filelist div { padding: 3px 8px; cursor: pointer; border-radius: 6px; font-family: Consolas, monospace; font-size: 12.5px; }
+  .filelist div:hover { background: #161b22; color: #58a6ff; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🧩 QixinBot 插件商店管理台</h1>
+  <span class="muted" id="cfghint"></span>
+  <nav id="tabs">
+    <button data-tab="review" class="active">审核队列 <span id="qcount"></span></button>
+    <button data-tab="store">商店条目</button>
+    <button data-tab="compare">对比同步</button>
+    <button data-tab="upload">上传发布</button>
+    <button data-tab="settings">设置</button>
+  </nav>
+</header>
+<main>
+  <section id="tab-review">
+    <div class="panel">
+      <div class="row">
+        <h2>待审核收录申请</h2>
+        <button class="act" onclick="loadIssues()">↻ 刷新</button>
+        <span class="muted">打开软件自动拉取 GitHub + Gitea 两边的「插件收录」工单</span>
+      </div>
+      <div id="queue" style="margin-top:12px"><p class="muted">加载中…</p></div>
+    </div>
+    <div id="reviewDetail"></div>
+  </section>
+
+  <section id="tab-store" style="display:none">
+    <div class="panel">
+      <div class="row">
+        <h2>商店条目（registry.json）</h2>
+        <button class="act" onclick="loadStore()">↻ 重新加载</button>
+        <button class="primary" onclick="saveStore()">💾 保存全部（提交并推送）</button>
+        <span class="muted">改 tag / 分类 / 版本 / 下架都在这里，保存即提交 website 仓库</span>
+      </div>
+      <table id="storeTable"><thead><tr>
+        <th>ID</th><th>中文名</th><th>层级</th><th>分类</th><th>版本</th><th>tags（逗号分隔）</th><th>简介</th><th></th>
+      </tr></thead><tbody></tbody></table>
+      <h2 style="margin-top:18px">新增条目（粘贴 JSON）</h2>
+      <textarea id="newEntry" rows="6" style="width:100%" placeholder='{"id":"...","name":"...","tier":"third-party", ...}'></textarea>
+      <div class="row" style="margin-top:8px"><button class="act" onclick="addEntry()">＋ 加入列表（保存后生效）</button></div>
+    </div>
+  </section>
+
+  <section id="tab-compare" style="display:none">
+    <div class="panel">
+      <div class="row">
+        <h2>Gitea ↔ GitHub 包对比</h2>
+        <button class="act" onclick="loadCompare()">↻ 刷新</button>
+        <button class="act" onclick="syncMissing()">把 Gitea 有而 GitHub 缺的全部同步 →</button>
+        <span class="muted">Gitea 是发布源；GitHub 靠镜像自动同步，这里可手动补</span>
+      </div>
+      <div id="cmpWrap" style="margin-top:12px"><p class="muted">加载中…</p></div>
+    </div>
+  </section>
+
+  <section id="tab-upload" style="display:none">
+    <div class="panel">
+      <h2>上传发布到 Gitea 插件仓库</h2>
+      <div class="row" style="margin:10px 0">
+        <span style="min-width:150px">插件目录</span>
+        <input id="upDir" style="flex:1" placeholder="D:\\path\\to\\my-plugin（含 manifest.toml）">
+      </div>
+      <div class="row" style="margin:10px 0">
+        <span style="min-width:150px">.anzu 包（可选）</span>
+        <input id="upAnzu" style="flex:1" placeholder="留空则自动找目录旁的 <id>.anzu">
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button class="act" onclick="doUpload(false)">👁 预览（dry-run）</button>
+        <button class="primary" onclick="doUpload(true)">🚀 发布</button>
+        <span class="muted">目录模式一次提交：源码 + README + 包；发布后镜像 1 分钟内同步 GitHub</span>
+      </div>
+      <pre id="upOut" style="display:none"></pre>
+    </div>
+  </section>
+
+  <section id="tab-settings" style="display:none">
+    <div class="panel">
+      <h2>设置</h2>
+      <p class="muted">token 只存在本机 tools/gui-config.json（已 gitignore）。GitHub 用 classic PAT（repo 权限）。</p>
+      <table style="max-width:860px">
+        <tr><td style="width:170px">Gitea 地址</td><td><input id="c_giteaUrl" style="width:100%"></td></tr>
+        <tr><td>Gitea token</td><td><input id="c_giteaToken" type="password" style="width:100%" placeholder="Gitea → 设置 → 应用 → 生成 token（write:repository）"></td></tr>
+        <tr><td>GitHub token</td><td><input id="c_githubToken" type="password" style="width:100%" placeholder="ghp_…（登录 GitHub 就用这个，不填则匿名只读）"></td></tr>
+        <tr><td>代理</td><td><input id="c_proxy" style="width:100%"></td></tr>
+        <tr><td>Gitea 属主 / 仓库</td><td><input id="c_giteaOwner" style="width:120px"> <input id="c_pluginsRepo" style="width:200px"> <input id="c_githubOwner" style="width:120px" placeholder="github 属主"></td></tr>
+        <tr><td>部署私钥路径</td><td><input id="c_deployKeyPath" style="width:100%" placeholder="留空则自动从 nas.yaml 提取 1Panel 虚拟机密钥"></td></tr>
+        <tr><td>nas.yaml 路径</td><td><input id="c_nasYamlPath" style="width:100%"></td></tr>
+      </table>
+      <div class="row" style="margin-top:14px">
+        <button class="primary" onclick="saveCfg()">💾 保存设置</button>
+        <button class="act" onclick="deploySite()">🚀 部署官网（构建+上传 1Panel）</button>
+      </div>
+      <pre id="deployLog" style="display:none"></pre>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s) => document.querySelector(s)
+const api = async (p, body) => {
+  const res = await fetch(p, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : undefined)
+  const j = await res.json().catch(() => ({}))
+  if (!res.ok || j.err) throw new Error(j.err || res.status)
+  return j
+}
+function toast(msg, err) {
+  const t = $('#toast'); t.textContent = msg; t.className = 'toast' + (err ? ' err' : ''); t.style.display = 'block'
+  setTimeout(() => t.style.display = 'none', 3200)
+}
+
+// ---- tabs ----
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.remove('active'))
+  document.querySelectorAll('main section').forEach(s => s.style.display = 'none')
+  b.classList.add('active')
+  $('#tab-' + b.dataset.tab).style.display = 'block'
+  if (b.dataset.tab === 'review') loadIssues()
+  if (b.dataset.tab === 'store') loadStore()
+  if (b.dataset.tab === 'compare') loadCompare()
+  if (b.dataset.tab === 'settings') loadCfg()
+})
+
+// ---- 审核队列 ----
+let queue = []
+async function loadIssues() {
+  $('#queue').innerHTML = '<p class="muted">拉取中…</p>'
+  queue = []
+  for (const platform of ['github', 'gitea']) {
+    try { (await api('/api/issues?platform=' + platform)).issues.forEach(i => queue.push({ platform, ...i })) } catch (e) {}
+  }
+  $('#qcount').textContent = queue.length ? `（${queue.length}）` : ''
+  $('#queue').innerHTML = queue.length ? queue.map(i =>
+    `<div class="qcard" onclick="openReview('${i.platform}',${i.num})">
+       <span class="pill ${i.platform === 'github' ? 'pill-gh' : 'pill-gt'}">${i.platform}</span>
+       <b>#${i.num}</b> ${i.title}
+       <span class="muted">　by ${i.author} · ${i.created?.slice(0, 10)}</span>
+     </div>`).join('') : '<p class="muted">✅ 当前没有待审核的收录申请。有人发 Issue（打上「插件收录」标签）后，这里就会出现。</p>'
+}
+
+async function openReview(platform, num) {
+  const d = $('#reviewDetail')
+  d.innerHTML = '<div class="panel"><p class="muted">下载包并验证中…</p></div>'
+  d.scrollIntoView({ behavior: 'smooth' })
+  let r
+  try { r = await api('/api/review', { platform, num }) } catch (e) {
+    d.innerHTML = `<div class="panel"><p style="color:#f85149">✗ ${e.message}</p></div>`; return
+  }
+  const f = r.fields, man = r.man
+  d.innerHTML = `
+  <div class="panel">
+    <h2>#${num} ${f['插件中文名'] || man.name || ''}（${man.id || f['插件 ID']}）v${man.version || '?'}</h2>
+    <p>${r.verdict === 'ok'
+      ? '<span class="verdict-ok">✓ 自动检查无异常——确认源码后可一键通过</span>'
+      : `<span class="verdict-concern">⚠ 有 ${r.checks.filter(c => !c.ok).length} 项疑问，人工确认后可放行</span>`}</p>
+    <div class="grid2">
+      <div>
+        <h2>自动检查</h2>
+        ${r.checks.map(c => `<div class="${c.ok ? 'check-ok' : 'check-bad'}" style="font-size:13px">${c.label}</div>`).join('')}
+        <h2 style="margin-top:14px">申请信息</h2>
+        <p class="muted" style="font-size:12.5px">
+          简介：${f['一句话简介'] || '—'}<br>
+          语言：${f['语言'] || '—'} ｜ 依赖：${f['运行依赖'] || '无'}<br>
+          源码：<a style="color:#58a6ff" href="${f['源码仓库地址'] || '#'}" target="_blank">${f['源码仓库地址'] || '—'}</a><br>
+          公钥/指纹：<code>${(f['签名公钥或指纹'] || '—').slice(0, 80)}</code><br>
+          联系：${f['联系方式'] || '—'}
+        </p>
+      </div>
+      <div>
+        <h2>包内文件（点开看源码）</h2>
+        <div class="filelist">${r.files.map(x => `<div onclick="viewFile('${platform}:${num}','${x.name.replaceAll("'", "\\'")}')">${x.name} <span class="muted">(${(x.size / 1024).toFixed(1)}K)</span></div>`).join('')}</div>
+        <h2 style="margin-top:14px">外联地址（${r.urls.length}）</h2>
+        <p class="muted" style="font-size:11.5px;word-break:break-all">${r.urls.length ? r.urls.join('<br>') : '（无）'}</p>
+      </div>
+    </div>
+    <pre id="fileView" style="display:none;margin-top:12px"></pre>
+    <div class="row" style="margin-top:16px">
+      <button class="primary" onclick="approve('${platform}',${num})">✓ 一键通过（写入商店并推送）</button>
+      <button class="danger" onclick="reject('${platform}',${num})">✗ 拒绝</button>
+      <a class="act" style="text-decoration:none" href="${platform === 'github'
+        ? 'https://github.com/inoryxin/QixinBot-go-plugins/issues/' + num
+        : 'http://10.0.0.140:30008/inoryxin/QixinBot-go-plugins/issues/' + num}" target="_blank">打开原 Issue</a>
+    </div>
+  </div>`
+}
+async function viewFile(key, name) {
+  const r = await api('/api/review-file?key=' + encodeURIComponent(key) + '&name=' + encodeURIComponent(name))
+  const pre = $('#fileView'); pre.style.display = 'block'
+  pre.textContent = `===== ${r.name}${r.truncated ? '（已截断）' : ''} =====\n` + r.text
+}
+async function approve(platform, num) {
+  if (!confirm('确认通过？将写入商店并提交推送。')) return
+  try {
+    const r = await api('/api/approve', { platform, num })
+    toast(`✓ 已上架 ${r.entry.name}（记得部署官网后生效）`)
+    $('#reviewDetail').innerHTML = ''
+    loadIssues()
+  } catch (e) { toast(e.message, true) }
+}
+async function reject(platform, num) {
+  const reason = prompt('拒绝原因（会留言在 issue 上）：')
+  if (reason === null) return
+  try { await api('/api/reject', { platform, num, reason }); toast('已拒绝并关闭'); $('#reviewDetail').innerHTML = ''; loadIssues() }
+  catch (e) { toast(e.message, true) }
+}
+
+// ---- 商店条目 ----
+let storeEntries = []
+async function loadStore() {
+  storeEntries = (await api('/api/registry')).entries
+  renderStore()
+}
+function renderStore() {
+  const cats = { ai: 'AI 助手', fun: '娱乐互动', feed: '订阅推送', group: '群聊管理', tool: '工具查询', device: '设备管家', theme: '主题' }
+  $('#storeTable tbody').innerHTML = storeEntries.map((e, i) => `
+    <tr>
+      <td><b>${e.id}</b><br><span class="pill ${e.tier === 'official' ? 'pill-gt' : ''}" style="${e.tier === 'official' ? '' : 'background:#d2992222;color:#d29922'}">${e.tier === 'official' ? '官方' : '第三方'}</span></td>
+      <td><input value="${(e.name ?? '').replaceAll('"', '&quot;')}" style="width:130px" onchange="editEntry(${i},'name',this.value)"></td>
+      <td><select onchange="editEntry(${i},'tier',this.value)">
+        <option value="official" ${e.tier === 'official' ? 'selected' : ''}>官方</option>
+        <option value="third-party" ${e.tier === 'third-party' ? 'selected' : ''}>第三方</option></select></td>
+      <td><select onchange="editEntry(${i},'category',this.value)">
+        ${Object.entries(cats).map(([k, v]) => `<option value="${k}" ${e.category === k ? 'selected' : ''}>${v}</option>`).join('')}</select></td>
+      <td><input value="${e.version ?? ''}" style="width:80px" onchange="editEntry(${i},'version',this.value)"></td>
+      <td><input value="${(e.tags ?? []).join(',')}" style="width:130px" onchange="editEntry(${i},'tags',this.value.split(',').map(s=>s.trim()).filter(Boolean))"></td>
+      <td><input value="${(e.description ?? '').replaceAll('"', '&quot;')}" style="width:260px" onchange="editEntry(${i},'description',this.value)"></td>
+      <td><button class="danger" onclick="delEntry(${i})">下架</button></td>
+    </tr>`).join('')
+}
+function editEntry(i, k, v) { storeEntries[i][k] = v }
+function delEntry(i) {
+  if (!confirm(`下架 ${storeEntries[i].name}（${storeEntries[i].id}）？保存后生效；.anzu 包仍在插件仓库。`)) return
+  storeEntries.splice(i, 1); renderStore()
+}
+function addEntry() {
+  try {
+    const e = JSON.parse($('#newEntry').value)
+    if (storeEntries.some(x => x.id === e.id)) throw new Error('id 已存在')
+    e.tags = e.tags ?? []
+    storeEntries.push(e); renderStore(); $('#newEntry').value = ''
+  } catch (err) { toast('JSON 无效：' + err.message, true) }
+}
+async function saveStore() {
+  try {
+    await api('/api/registry/save', { entries: storeEntries, msg: `商店后台更新 registry（${storeEntries.length} 条）` })
+    toast('✓ 已保存并推送；部署官网后生效')
+  } catch (e) { toast(e.message, true) }
+}
+
+// ---- 对比同步 ----
+async function loadCompare() {
+  $('#cmpWrap').innerHTML = '<p class="muted">拉取中…</p>'
+  const { rows } = await api('/api/compare')
+  $('#cmpWrap').innerHTML = `<table><thead><tr><th>插件</th><th>Gitea</th><th>GitHub</th><th>商店</th><th>操作</th></tr></thead><tbody>
+    ${rows.map(r => `<tr>
+      <td><b>${r.id}</b></td>
+      <td>${r.gitea ? `<span class="pill pill-gt">✓</span> <span class="muted">${(r.giteaSize / 1024).toFixed(0)}K</span>` : '<span class="muted">—</span>'}</td>
+      <td>${r.github ? `<span class="pill pill-gh">✓</span> <span class="muted">${(r.githubSize / 1024).toFixed(0)}K</span>` : '<span class="muted">—</span>'}</td>
+      <td>${r.inStore ? `✓ v${r.storeVersion}` : '<span class="muted">未上架</span>'}</td>
+      <td class="row">
+        ${r.gitea && (!r.github || r.giteaSize !== r.githubSize) ? `<button class="act" onclick="syncOne('gitea2github','${r.id}')">→GitHub</button>` : ''}
+        ${r.github && (!r.gitea || r.giteaSize !== r.githubSize) ? `<button class="act" onclick="syncOne('github2gitea','${r.id}')">→Gitea</button>` : ''}
+        ${r.gitea && !r.inStore ? `<button class="primary" onclick="shelf('${r.id}')">上架</button>` : ''}
+      </td>
+    </tr>`).join('')}</tbody></table>`
+}
+async function syncOne(dir, id) {
+  try {
+    const r = await api('/api/sync', { direction: dir, ids: [id] })
+    toast(r.results[0].ok ? `✓ ${id} 已同步` : `✗ ${id} 同步失败`, !r.results[0].ok)
+    loadCompare()
+  } catch (e) { toast(e.message, true) }
+}
+async function syncMissing() {
+  const { rows } = await api('/api/compare')
+  const ids = rows.filter(r => r.gitea && !r.github).map(r => r.id)
+  if (!ids.length) return toast('没有缺失的包')
+  const r = await api('/api/sync', { direction: 'gitea2github', ids })
+  toast(`✓ 同步 ${r.results.filter(x => x.ok).length}/${ids.length} 个`)
+  loadCompare()
+}
+async function shelf(id) {
+  try { const r = await api('/api/shelf', { id }); toast(`✓ 已上架 ${r.entry.name}（部署官网后生效）`); loadCompare() }
+  catch (e) { toast(e.message, true) }
+}
+
+// ---- 上传 ----
+async function doUpload(yes) {
+  const out = $('#upOut'); out.style.display = 'block'; out.textContent = yes ? '发布中…' : '预览中…'
+  try {
+    const r = await api('/api/upload', { target: $('#upDir').value.trim(), anzu: $('#upAnzu').value.trim() || undefined, yes })
+    out.textContent = (r.files.map(f => `${f.update ? '改' : '新'} ${f.path} (${(f.size / 1024).toFixed(1)}K)`).join('\n'))
+      + `\n\n${r.dryRun ? '[dry-run] 未提交，确认后点「发布」' : '✓ 已提交，镜像 1 分钟内同步 GitHub'}\n` + r.message
+  } catch (e) { out.textContent = '✗ ' + e.message }
+}
+
+// ---- 设置 ----
+async function loadCfg() {
+  const c = await api('/api/config')
+  for (const k of ['giteaUrl', 'giteaToken', 'githubToken', 'proxy', 'giteaOwner', 'githubOwner', 'pluginsRepo', 'deployKeyPath', 'nasYamlPath']) {
+    const el = $('#c_' + k); if (el) el.value = c[k] ?? ''
+  }
+  $('#cfghint').innerHTML =
+    `Gitea <span class="dot ${c.hasGiteaToken ? 'ok' : 'bad'}"></span> GitHub <span class="dot ${c.hasGithubToken ? 'ok' : 'warn'}"></span>`
+    + ` <span class="muted">${c.hasGithubToken ? '已配置' : '未配置（匿名只读，审核/同步需配置）'}</span>`
+}
+async function saveCfg() {
+  const b = {}
+  for (const k of ['giteaUrl', 'giteaToken', 'githubToken', 'proxy', 'giteaOwner', 'githubOwner', 'pluginsRepo', 'deployKeyPath', 'nasYamlPath']) b[k] = $('#c_' + k).value.trim()
+  await api('/api/config', b); toast('✓ 设置已保存'); loadCfg()
+}
+async function deploySite() {
+  const log = $('#deployLog'); log.style.display = 'block'; log.textContent = '构建与部署中（约 1 分钟）…'
+  try { const r = await api('/api/deploy'); log.textContent = r.log.join('\n') + '\n✓ 部署完成 http://10.0.0.123:8090' }
+  catch (e) { log.textContent = '✗ ' + e.message }
+}
+
+// ---- 启动：默认审核队列自动拉取 ----
+loadCfg()
+loadIssues()
+</script>
+</body>
+</html>

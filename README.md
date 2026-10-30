@@ -135,6 +135,23 @@ node tools/review-plugin.mjs <issue编号> --write    # 通过后：把条目写
 
 不通过就关 issue 并留言原因；上架后出问题，从 registry.json 删条目即下架。
 
+## 插件商店管理台（GUI）
+
+```bash
+npm run gui        # 打开 http://localhost:7802
+```
+
+本地管理台覆盖插件商店全部日常操作：
+
+- **审核队列**（默认页）：自动拉取 GitHub + Gitea 的「插件收录」Issue，自动下载包、
+  交叉核对 manifest、安全扫描，按「无异常 / 有疑问」分级；包内源码直接点开看，
+  一键通过（写 registry 并推送）或拒绝（留言关单）
+- **商店条目**：改中文名 / 层级 / 分类 / 版本 / tags / 简介，下架即删条目，保存即提交推送
+- **对比同步**：Gitea 与 GitHub 的 packages/ 差异表，按插件双向同步，Gitea 包一键上架
+- **上传发布**：填本地插件目录（或 .anzu），dry-run 预览后发布到 Gitea（镜像自动同步）
+- **设置**：Gitea / GitHub token（本机保存于 tools/gui-config.json，已 gitignore）、
+  代理、部署密钥；一键部署官网（构建 + 推 1Panel）
+
 ## 插件仓库与 Wiki 分工
 
 - [QixinBot-go-plugins](repo://QixinBot-go-plugins)：只放**源码**（`src/`，每个插件
