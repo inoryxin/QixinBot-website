@@ -365,26 +365,6 @@
     "tags": []
   },
   {
-    "id": "pc",
-    "name": "电脑",
-    "tier": "official",
-    "kind": "plugin",
-    "category": "device",
-    "description": "一台 PC 一个管家：状态、截图、重启/睡眠/锁屏、唤醒 DSH 并把 QQ 聊天交给 DSH",
-    "language": "Node.js",
-    "deps": [],
-    "permissions": [
-      "onebot.dangerous"
-    ],
-    "observe": false,
-    "version": "1.0.0",
-    "author": "QixinBot 官方",
-    "repo": "repo://QixinBot-go-plugins/tree/main/src/pc",
-    "package": "repo://QixinBot-go-plugins/raw/main/packages/pc.anzu",
-    "fingerprint": null,
-    "tags": []
-  },
-  {
     "id": "qq-profile",
     "name": "QQ 资料",
     "tier": "official",
