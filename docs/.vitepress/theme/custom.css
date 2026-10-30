@@ -21,10 +21,11 @@
   }
 }
 
-/* 插件商店页：内容区放宽到 1400px，卡片一行能排 4-5 个 */
+/* 插件商店页：内容区放宽到 1400px，卡片一行能排 4-5 个。
+   VP 自带 .VPDoc:not(.has-sidebar) .container[data-v]{max-width:1104px} 特异性更高，须 !important 压过 */
 .plugin-store-page .VPDoc .container,
 .plugin-store-page .VPDoc .content-container {
-  max-width: 1400px;
+  max-width: 1400px !important;
 }
 @media (min-width: 1280px) {
   .plugin-store-page .VPDoc .container {
