@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { resolveRepoLink } from '../../links'
+import { resolveRepoLink, LINKS } from '../../links'
 import registry from '../../../plugins/registry.json'
 
 interface PluginEntry {
@@ -83,14 +83,26 @@ function depClass(dep: string): string {
 
 <template>
   <div class="plugin-store">
-    <div class="store-toolbar">
+    <div class="store-hero">
+      <h1 class="store-title">插件商店</h1>
+      <p class="store-count">当前共有 {{ entries.length }} 个插件与主题</p>
+      <p class="store-disclaimer">
+        官方插件经过审核与长期稳定性验证；第三方插件由作者自己签名，收录前经人工审核，
+        但<strong>官方不对第三方的稳定性与安全性负责</strong>，安装时请核对签名指纹。
+      </p>
+    </div>
+
+    <div class="store-search-wrap">
       <input
         v-model="query"
         class="store-search"
         type="search"
-        placeholder="搜索插件：名字 / 功能 / 语言…"
+        placeholder="搜索插件：名字 / 功能 / 语言 / tag…"
         aria-label="搜索插件"
       />
+    </div>
+
+    <div class="store-toolbar">
       <div class="store-cats" role="tablist" aria-label="插件分类">
         <button
           v-for="(label, key) in { all: '全部', ...CATEGORIES }"
@@ -105,6 +117,9 @@ function depClass(dep: string): string {
           <span class="cat-count">{{ counts[key] ?? 0 }}</span>
         </button>
       </div>
+      <a class="store-publish" :href="LINKS.pluginsSubmit" target="_blank" rel="noopener">
+        <span class="plus">＋</span> 发布插件
+      </a>
     </div>
 
     <p v-if="filtered.length === 0" class="store-empty">没有匹配的插件，换个关键字试试。</p>
@@ -153,27 +168,69 @@ function depClass(dep: string): string {
 
 <style scoped>
 .plugin-store {
-  margin-top: 8px;
+  margin-top: 4px;
 }
-.store-toolbar {
+
+/* ---------- 顶部：标题 / 数量 / 免责声明 ---------- */
+.store-hero {
+  text-align: center;
+  margin: 20px 0 0;
+}
+.store-title {
+  margin: 0;
+  padding: 0;
+  border: none;
+  font-size: 42px;
+  line-height: 1.2;
+  font-weight: 700;
+}
+.store-count {
+  margin: 10px 0 0;
+  font-size: 15px;
+  color: var(--vp-c-text-2);
+}
+.store-disclaimer {
+  max-width: 780px;
+  margin: 8px auto 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--vp-c-text-3);
+}
+.store-disclaimer strong {
+  color: var(--vp-c-text-2);
+}
+
+/* ---------- 搜索框（居中、加宽） ---------- */
+.store-search-wrap {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 20px;
+  justify-content: center;
+  margin: 24px 0 18px;
 }
 .store-search {
   width: 100%;
-  max-width: 420px;
-  padding: 8px 14px;
+  max-width: 680px;
+  padding: 11px 18px;
   border: 1px solid var(--vp-c-divider);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--vp-c-bg-soft);
   color: var(--vp-c-text-1);
-  font-size: 14px;
+  font-size: 14.5px;
   outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 .store-search:focus {
   border-color: var(--vp-c-brand-1);
+  box-shadow: 0 0 0 3px var(--vp-c-brand-soft);
+}
+
+/* ---------- 工具栏：分类居左，发布插件居右 ---------- */
+.store-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
 }
 .store-cats {
   display: flex;
@@ -185,7 +242,7 @@ function depClass(dep: string): string {
   background: var(--vp-c-bg-soft);
   color: var(--vp-c-text-2);
   border-radius: 999px;
-  padding: 4px 12px;
+  padding: 5px 13px;
   font-size: 13px;
   cursor: pointer;
   transition: all 0.15s;
@@ -205,6 +262,31 @@ function depClass(dep: string): string {
   font-size: 12px;
   margin-left: 2px;
 }
+.store-publish {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--vp-c-brand-3);
+  color: #fff;
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: filter 0.15s, transform 0.15s;
+}
+.store-publish:hover {
+  filter: brightness(1.1);
+  color: #fff;
+  transform: translateY(-1px);
+}
+.store-publish .plus {
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* ---------- 卡片网格 ---------- */
 .store-empty {
   color: var(--vp-c-text-2);
   padding: 32px 0;
@@ -212,8 +294,8 @@ function depClass(dep: string): string {
 }
 .store-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
 }
 .plugin-card {
   display: flex;
@@ -222,11 +304,12 @@ function depClass(dep: string): string {
   border: 1px solid var(--vp-c-divider);
   border-radius: 12px;
   background: var(--vp-c-bg-soft);
-  padding: 16px;
-  transition: border-color 0.15s;
+  padding: 18px;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 .plugin-card:hover {
   border-color: var(--vp-c-brand-1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 .card-head {
   display: flex;
@@ -235,7 +318,7 @@ function depClass(dep: string): string {
 }
 .card-name {
   margin: 0;
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.3;
   border: none;
   padding: 0;
@@ -359,5 +442,18 @@ function depClass(dep: string): string {
 }
 .card-links a:hover {
   text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .store-title {
+    font-size: 32px;
+  }
+  .store-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .store-publish {
+    align-self: flex-end;
+  }
 }
 </style>

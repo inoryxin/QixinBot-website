@@ -1,12 +1,8 @@
 ---
 aside: false
 pageClass: plugin-store-page
+title: 插件商店
 ---
-
-# 插件
-
-QixinBot 的插件目录：官方插件经过审核与长期稳定性验证；第三方插件由作者自己签名，
-收录前经人工审核，但**官方不对第三方的稳定性与安全性负责**，安装时请核对签名指纹。
 
 <PluginStore />
 
