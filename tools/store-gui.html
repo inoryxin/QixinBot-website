@@ -85,6 +85,16 @@
       <table id="storeTable"><thead><tr>
         <th>ID</th><th>中文名</th><th>层级</th><th>分类</th><th>版本</th><th>tags（逗号分隔）</th><th>简介</th><th></th>
       </tr></thead><tbody></tbody></table>
+      <h2 style="margin-top:18px">分类管理</h2>
+      <table id="catTable" style="max-width:560px"><thead><tr><th>key（registry 用）</th><th>显示名</th><th></th></tr></thead><tbody></tbody></table>
+      <div class="row" style="margin-top:8px">
+        <input id="newCatKey" placeholder="key（英文，如 media）" style="width:200px">
+        <input id="newCatLabel" placeholder="显示名（如 媒体）" style="width:200px">
+        <button class="act" onclick="addCat()">＋ 添加分类</button>
+        <button class="primary" onclick="saveCats()">💾 保存分类</button>
+        <span class="muted">删分类前先把该分类的条目改走；保存即提交推送</span>
+      </div>
+
       <h2 style="margin-top:18px">新增条目（粘贴 JSON）</h2>
       <textarea id="newEntry" rows="6" style="width:100%" placeholder='{"id":"...","name":"...","tier":"third-party", ...}'></textarea>
       <div class="row" style="margin-top:8px"><button class="act" onclick="addEntry()">＋ 加入列表（保存后生效）</button></div>
@@ -258,10 +268,13 @@ async function reject(platform, num) {
 let storeEntries = []
 async function loadStore() {
   storeEntries = (await api('/api/registry')).entries
+  await loadCats()
   renderStore()
+  renderCats()
 }
+let cats = {}
+async function loadCats() { cats = await api('/api/categories') }
 function renderStore() {
-  const cats = { ai: 'AI 助手', fun: '娱乐互动', feed: '订阅推送', group: '群聊管理', tool: '工具查询', device: '设备管家', theme: '主题' }
   $('#storeTable tbody').innerHTML = storeEntries.map((e, i) => `
     <tr>
       <td><b>${e.id}</b><br><span class="pill ${e.tier === 'official' ? 'pill-gt' : ''}" style="${e.tier === 'official' ? '' : 'background:#d2992222;color:#d29922'}">${e.tier === 'official' ? '官方' : '第三方'}</span></td>
@@ -278,6 +291,27 @@ function renderStore() {
     </tr>`).join('')
 }
 function editEntry(i, k, v) { storeEntries[i][k] = v }
+function renderCats() {
+  const used = {}
+  storeEntries.forEach(e => used[e.category] = (used[e.category] ?? 0) + 1)
+  $('#catTable tbody').innerHTML = Object.entries(cats).map(([k, v]) => `
+    <tr>
+      <td><code>${k}</code></td>
+      <td><input value="${v}" style="width:160px" onchange="cats[k]=this.value"></td>
+      <td><button class="danger" ${used[k] ? 'disabled title="有 ' + used[k] + ' 个条目在用，先改走它们"' : ''} onclick="delete cats[k];renderCats()">删除</button>
+          <span class="muted">${used[k] ?? ''}</span></td>
+    </tr>`).join('')
+}
+function addCat() {
+  const k = $('#newCatKey').value.trim(), v = $('#newCatLabel').value.trim()
+  if (!k || !v) return toast('key 和显示名都要填', true)
+  if (cats[k]) return toast('key 已存在', true)
+  cats[k] = v; renderCats()
+}
+async function saveCats() {
+  try { await api('/api/categories/save', { cats }); toast('✓ 分类已保存推送'); renderStore() }
+  catch (e) { toast(e.message, true) }
+}
 function delEntry(i) {
   if (!confirm(`下架 ${storeEntries[i].name}（${storeEntries[i].id}）？保存后生效；.anzu 包仍在插件仓库。`)) return
   storeEntries.splice(i, 1); renderStore()

@@ -9,6 +9,8 @@
     "gui": "node tools/store-gui.mjs"
   },
   "devDependencies": {
+    "esbuild": "^0.28.2",
+    "postject": "^1.0.0-alpha.6",
     "vitepress": "^1.6.3"
   }
 }

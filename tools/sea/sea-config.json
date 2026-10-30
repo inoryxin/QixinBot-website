@@ -1,0 +1,8 @@
+{
+  "main": "C:\\Users\\anzu\\Documents\\xin\\zcode\\QixinBot-website\\tools\\sea\\gui-bundle.cjs",
+  "output": "C:\\Users\\anzu\\Documents\\xin\\zcode\\QixinBot-website\\tools\\sea\\gui-sea.blob",
+  "assets": {
+    "store-gui.html": "C:\\Users\\anzu\\Documents\\xin\\zcode\\QixinBot-website\\tools\\store-gui.html"
+  },
+  "disableExperimentalSEAWarning": true
+}

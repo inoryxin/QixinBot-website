@@ -18,12 +18,13 @@ import { fileURLToPath } from 'node:url'
 import { execSync } from 'node:child_process'
 import { listZipEntries, parseManifest } from './lib-anzu.mjs'
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const CONFIG_PATH = join(ROOT, 'tools', 'gui-config.json')
-const REG_PATH = join(ROOT, 'docs', 'plugins', 'registry.json')
-const PORT = 7802
+// ---------- 运行环境：源码模式 / SEA 单文件 exe 模式 ----------
+function isSeaRuntime() {
+  try { return typeof require === 'function' && require('node:sea').isSea() } catch { return false }
+}
+const SEA = isSeaRuntime()
+const EXE_DIR = SEA ? dirname(process.execPath) : null
 
-// ---------- 配置 ----------
 const CFG_DEFAULT = {
   giteaUrl: 'http://10.0.0.140:30008',
   giteaToken: '',
@@ -34,10 +35,33 @@ const CFG_DEFAULT = {
   pluginsRepo: 'QixinBot-go-plugins',
   deployKeyPath: '',
   nasYamlPath: 'C:/Users/anzu/Documents/xin/nas.yaml',
+  // exe 模式下必填：官网（website 仓库）本地路径，registry/分类/部署都在里面
+  repoPath: 'C:/Users/anzu/Documents/xin/zcode/QixinBot-website',
 }
 let CFG = { ...CFG_DEFAULT }
-if (existsSync(CONFIG_PATH)) CFG = { ...CFG_DEFAULT, ...JSON.parse(readFileSync(CONFIG_PATH, 'utf8')) }
+let ROOT, CONFIG_PATH
+if (SEA) {
+  CONFIG_PATH = join(EXE_DIR, 'gui-config.json')
+  if (existsSync(CONFIG_PATH)) CFG = { ...CFG_DEFAULT, ...JSON.parse(readFileSync(CONFIG_PATH, 'utf8')) }
+  else saveCfg()
+  ROOT = CFG.repoPath || CFG_DEFAULT.repoPath
+} else {
+  ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+  CONFIG_PATH = join(ROOT, 'tools', 'gui-config.json')
+  if (existsSync(CONFIG_PATH)) CFG = { ...CFG_DEFAULT, ...JSON.parse(readFileSync(CONFIG_PATH, 'utf8')) }
+}
 const saveCfg = () => writeFileSync(CONFIG_PATH, JSON.stringify(CFG, null, 2))
+const REG_PATH = () => join(ROOT, 'docs', 'plugins', 'registry.json')
+const CATS_PATH = () => join(ROOT, 'docs', 'plugins', 'categories.json')
+const PORT = 7802
+
+function seaAsset(name) {
+  if (SEA) {
+    const buf = require('node:sea').getAsset(name)
+    return Buffer.from(buf)
+  }
+  return readFileSync(join(dirname(fileURLToPath(import.meta.url)), name))
+}
 
 // ---------- 平台调用 ----------
 async function gitea(path, { method = 'GET', body } = {}) {
@@ -106,7 +130,8 @@ function issueFields(body) {
   while ((m = re.exec(body ?? ''))) fields[m[1].trim()] = m[2].trim()
   return fields
 }
-const CAT = { 'AI 助手': 'ai', 娱乐互动: 'fun', 订阅推送: 'feed', 群聊管理: 'group', 工具查询: 'tool', 设备管家: 'device' }
+function readCats() { return JSON.parse(readFileSync(CATS_PATH(), 'utf8')) }
+const catMap = () => Object.fromEntries(Object.entries(readCats()).map(([k, v]) => [v, k]))
 
 function buildEntry(f, man, issue, mRaw) {
   return {
@@ -114,7 +139,7 @@ function buildEntry(f, man, issue, mRaw) {
     name: f['插件中文名'] || man.name || '',
     tier: 'third-party',
     kind: man.kind === 'theme' ? 'theme' : 'plugin',
-    category: CAT[f['分类']] ?? 'tool',
+    category: catMap()[f['分类']] ?? 'tool',
     description: f['一句话简介'] || man.description || '',
     language: f['语言'] || 'Node.js',
     deps: (f['运行依赖'] ?? '').split(/[、,，\s]+/).filter(Boolean),
@@ -175,8 +200,8 @@ async function doReview(platform, num) {
 }
 
 // ---------- registry ----------
-function readReg() { return JSON.parse(readFileSync(REG_PATH, 'utf8')) }
-function writeReg(list) { writeFileSync(REG_PATH, JSON.stringify(list, null, 2) + '\n') }
+function readReg() { return JSON.parse(readFileSync(REG_PATH(), 'utf8')) }
+function writeReg(list) { writeFileSync(REG_PATH(), JSON.stringify(list, null, 2) + '\n') }
 
 // ---------- 上传（目录 / 包） ----------
 const SKIP = new Set(['.git', 'node_modules', 'dist', 'build', '__pycache__', '.DS_Store'])
@@ -257,7 +282,6 @@ function deploySite() {
 }
 
 // ---------- HTTP ----------
-const html = `<!doctype html>${readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'store-gui.html'), 'utf8')}`
 
 function json(res, code, data) {
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' })
@@ -274,7 +298,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && url.pathname === '/') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
-      return res.end(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'store-gui.html')))
+      return res.end(seaAsset('store-gui.html'))
     }
     if (url.pathname === '/api/config') {
       if (req.method === 'GET') return json(res, 200, { ...CFG, giteaToken: CFG.giteaToken ? '••••' + CFG.giteaToken.slice(-4) : '', githubToken: CFG.githubToken ? '••••' + CFG.githubToken.slice(-4) : '', hasGiteaToken: !!CFG.giteaToken, hasGithubToken: !!CFG.githubToken })
@@ -291,6 +315,8 @@ const server = http.createServer(async (req, res) => {
         Promise.resolve(gh(`/repos/${CFG.githubOwner}/${CFG.pluginsRepo}/contents/packages`)),
         Promise.resolve(readReg()),
       ])
+      if (g.status !== 200) throw new Error(`Gitea API ${g.status}：检查设置里的 token / 仓库归属`)
+      if (!Array.isArray(h.json)) throw new Error('GitHub API 失败：检查网络代理或 token')
       const gMap = new Map((g.json ?? []).map((e) => [e.name.replace(/\.anzu$/, ''), e]))
       const hMap = new Map((h.json ?? []).map((e) => [e.name.replace(/\.anzu$/, ''), e]))
       const regMap = new Map(reg.map((e) => [e.id, e]))
@@ -406,6 +432,19 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/registry' && req.method === 'GET') {
       return json(res, 200, { entries: readReg() })
+    }
+    if (url.pathname === '/api/categories' && req.method === 'GET') {
+      return json(res, 200, readCats())
+    }
+    if (url.pathname === '/api/categories/save' && req.method === 'POST') {
+      const { cats } = await readBody(req)
+      if (!cats || typeof cats !== 'object' || Object.keys(cats).length === 0) throw new Error('分类不能为空')
+      const removed = Object.keys(readCats()).filter((k) => !(k in cats))
+      const inUse = readReg().filter((e) => removed.includes(e.category)).map((e) => e.id)
+      if (inUse.length) throw new Error(`分类仍有条目在用：${inUse.join('、')}——先给它们改分类再删`)
+      writeFileSync(CATS_PATH(), JSON.stringify(cats, null, 2) + '\n')
+      gitRegistryCommit('商店后台：更新分类')
+      return json(res, 200, { ok: true, cats })
     }
     if (url.pathname === '/api/registry/save' && req.method === 'POST') {
       const { entries, msg } = await readBody(req)

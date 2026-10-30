@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { resolveRepoLink, LINKS } from '../../links'
 import registry from '../../../plugins/registry.json'
+import CATEGORIES from '../../../plugins/categories.json'
 
 interface PluginEntry {
   id: string
@@ -24,15 +25,7 @@ interface PluginEntry {
 
 const entries = registry as PluginEntry[]
 
-const CATEGORIES: Record<string, string> = {
-  ai: 'AI 助手',
-  fun: '娱乐互动',
-  feed: '订阅推送',
-  group: '群聊管理',
-  tool: '工具查询',
-  device: '设备管家',
-  theme: '主题',
-}
+// 分类来自 docs/plugins/categories.json（管理台可增删）
 
 const PERM_LABELS: Record<string, string> = {
   'onebot.write': '收发消息',
@@ -93,6 +86,14 @@ function langClass(lang: string): string {
 }
 function depClass(dep: string): string {
   return isPythonSide(dep) ? 'chip-dep-python' : 'chip-dep-node'
+}
+
+// tag 配色：按内容哈希从固定色板取色，同名 tag 永远同色
+const TAG_PALETTE = ['tag-c1', 'tag-c2', 'tag-c3', 'tag-c4', 'tag-c5', 'tag-c6']
+function tagClass(t: string): string {
+  let h = 0
+  for (const ch of t) h = (h * 31 + ch.charCodeAt(0)) % 9973
+  return TAG_PALETTE[h % TAG_PALETTE.length]
 }
 </script>
 
@@ -158,7 +159,7 @@ function depClass(dep: string): string {
             {{ permLabel(p) }}
           </span>
           <span v-if="e.observe" class="chip">观察全量消息</span>
-          <span v-for="t in e.tags ?? []" :key="t" class="chip chip-tag">#{{ t }}</span>
+          <span v-for="t in e.tags ?? []" :key="t" class="chip" :class="tagClass(t)">#{{ t }}</span>
         </div>
 
         <div v-if="e.fingerprint" class="card-fp">
@@ -432,6 +433,19 @@ function depClass(dep: string): string {
   background: var(--vp-c-default-soft);
   color: var(--vp-c-text-3);
 }
+/* tag 六色板：按内容哈希取色 */
+.chip.tag-c1 { background: rgba(59, 130, 246, 0.13); color: #1d4ed8; }
+.chip.tag-c2 { background: rgba(236, 72, 153, 0.13); color: #be185d; }
+.chip.tag-c3 { background: rgba(34, 197, 94, 0.14); color: #15803d; }
+.chip.tag-c4 { background: rgba(234, 179, 8, 0.16); color: #a16207; }
+.chip.tag-c5 { background: rgba(168, 85, 247, 0.14); color: #7e22ce; }
+.chip.tag-c6 { background: rgba(6, 182, 212, 0.13); color: #0e7490; }
+.dark .chip.tag-c1 { color: #93c5fd; }
+.dark .chip.tag-c2 { color: #f9a8d4; }
+.dark .chip.tag-c3 { color: #86efac; }
+.dark .chip.tag-c4 { color: #fde047; }
+.dark .chip.tag-c5 { color: #d8b4fe; }
+.dark .chip.tag-c6 { color: #67e8f9; }
 .chip-danger {
   background: rgba(239, 68, 68, 0.12);
   color: #b91c1c;
