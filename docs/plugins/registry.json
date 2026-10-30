@@ -225,7 +225,9 @@
     "repo": "repo://QixinBot-go-plugins/tree/main/src/echo",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/echo.anzu",
     "fingerprint": null,
-    "tags": []
+    "tags": [
+      "回环测试"
+    ]
   },
   {
     "id": "emojimix",
