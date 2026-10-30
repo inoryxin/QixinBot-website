@@ -53,12 +53,18 @@ scp /tmp/site.tar.gz root@10.0.0.123:/tmp/
 ssh root@10.0.0.123 "rm -rf /opt/qixinbot-site/* && tar -C /opt/qixinbot-site -xzf /tmp/site.tar.gz"
 ```
 
-站点由 1Panel 虚拟机（10.0.0.123）上的 nginx 容器托管：
+站点由 1Panel 虚拟机（10.0.0.123）上的独立 OpenResty 容器托管（复用本机已有的
+`1panel/openresty` 镜像——VM 拉不了 Docker Hub，见 `deploy/nginx.conf`）：
 
 ```bash
 docker run -d --name qixinbot-site --restart unless-stopped \
-  -p 8090:80 -v /opt/qixinbot-site:/usr/share/nginx/html:ro nginx:alpine
+  -p 8090:80 \
+  -v /opt/qixinbot-site:/usr/share/nginx/html:ro \
+  -v /opt/qixinbot-nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro \
+  1panel/openresty:1.31.1.1-2-4-noble
 ```
 
+更新时只需重传产物解压到 `/opt/qixinbot-site/`，不用动容器。
+
 推送到 main 分支也会触发 `.gitea/workflows/deploy.yml` 自动构建部署
-（需要 Gitea Actions runner 在线，secrets：`DEPLOY_SSH_KEY` / `DEPLOY_HOST` / `DEPLOY_PATH`）。
+（需要 Gitea Actions runner 在线；secrets：`DEPLOY_SSH_KEY` / `DEPLOY_HOST` / `DEPLOY_PATH`）。
