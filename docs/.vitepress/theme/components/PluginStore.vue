@@ -36,31 +36,68 @@ const PERM_LABELS: Record<string, string> = {
 const query = ref('')
 const activeCategory = ref('all')
 
+// 默认分类：categories.json 里不存在或缺失的一律归 other（其他）
+const DEFAULT_CAT = 'other'
+const catOf = (e: PluginEntry) => (CATEGORIES[e.category] ? e.category : DEFAULT_CAT)
+
+// 置顶快捷筛选：@node / @python 按「语言 OR 依赖」判定（Node.js 运行时算 Node、Python 运行时算 Python）
+function quickMatch(e: PluginEntry, key: string): boolean {
+  if (key === '@node')
+    return !isPythonSide(e.language) || (e.deps ?? []).some((d) => !isPythonSide(d))
+  if (key === '@python')
+    return isPythonSide(e.language) || (e.deps ?? []).some((d) => isPythonSide(d))
+  if (key === 'theme') return e.kind === 'theme'
+  return catOf(e) === key
+}
+
+const chipList = computed(() => {
+  const pinned = [
+    { key: 'all', label: '全部' },
+    { key: '@node', label: 'Node.js' },
+    { key: '@python', label: 'Python' },
+    { key: 'theme', label: CATEGORIES.theme ?? '主题' },
+  ]
+  const rest = Object.entries(CATEGORIES)
+    .filter(([k]) => k !== 'theme')
+    .map(([key, label]) => ({ key, label }))
+  return [...pinned, ...rest]
+})
+
 const counts = computed(() => {
-  const c: Record<string, number> = { all: entries.length }
-  for (const e of entries) c[e.category] = (c[e.category] ?? 0) + 1
+  const c: Record<string, number> = {}
+  for (const chip of chipList.value) {
+    c[chip.key] =
+      chip.key === 'all'
+        ? entries.length
+        : entries.filter((e) => quickMatch(e, chip.key)).length
+  }
   return c
 })
 
+const sortMode = ref('default')
+const SORTS: Record<string, string> = {
+  default: '默认排序',
+  name: '按中文名',
+  version: '按版本',
+}
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase()
-  return entries
-    .filter((e) => activeCategory.value === 'all' || e.category === activeCategory.value)
+  const list = entries
+    .filter((e) => quickMatch(e, activeCategory.value))
     .filter((e) => {
       if (!q) return true
-      return [e.name, e.id, e.description, e.language, ...(e.tags ?? []), CATEGORIES[e.category] ?? '']
+      return [e.name, e.id, e.description, e.language, ...(e.tags ?? []), CATEGORIES[catOf(e)] ?? '']
         .join(' ')
         .toLowerCase()
         .includes(q)
     })
-    .sort((a, b) =>
-      a.tier === b.tier ? a.id.localeCompare(b.id) : a.tier === 'official' ? -1 : 1,
-    )
+  const sorted = [...list].sort((a, b) =>
+    a.tier === b.tier ? a.id.localeCompare(b.id) : a.tier === 'official' ? -1 : 1,
+  )
+  if (sortMode.value === 'name') sorted.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', 'zh-Hans-CN'))
+  if (sortMode.value === 'version') sorted.sort((a, b) => b.version.localeCompare(a.version))
+  return sorted
 })
-
-function permLabel(p: string): string {
-  return PERM_LABELS[p] ?? p
-}
 
 // 分页：每页 20 个，搜索/切分类时回到第一页
 const PAGE_SIZE = 20
@@ -116,21 +153,24 @@ function tagClass(t: string): string {
         placeholder="搜索插件：名字 / 功能 / 语言 / tag…"
         aria-label="搜索插件"
       />
+      <select v-model="sortMode" class="store-sort" aria-label="排序方式">
+        <option v-for="(label, key) in SORTS" :key="key" :value="key">{{ label }}</option>
+      </select>
     </div>
 
     <div class="store-toolbar">
       <div class="store-cats" role="tablist" aria-label="插件分类">
         <button
-          v-for="(label, key) in { all: '全部', ...CATEGORIES }"
-          :key="key"
+          v-for="chip in chipList"
+          :key="chip.key"
           class="store-cat"
-          :class="{ active: activeCategory === key }"
+          :class="{ active: activeCategory === chip.key }"
           role="tab"
-          :aria-selected="activeCategory === key"
-          @click="activeCategory = key"
+          :aria-selected="activeCategory === chip.key"
+          @click="activeCategory = chip.key"
         >
-          {{ label }}
-          <span class="cat-count">{{ counts[key] ?? 0 }}</span>
+          {{ chip.label }}
+          <span class="cat-count">{{ counts[chip.key] ?? 0 }}</span>
         </button>
       </div>
       <a class="store-publish" :href="LINKS.pluginsSubmit" target="_blank" rel="noopener">
@@ -155,10 +195,6 @@ function tagClass(t: string): string {
         <div class="card-meta">
           <span class="chip" :class="langClass(e.language)">{{ e.language }}</span>
           <span v-for="d in e.deps" :key="d" class="chip" :class="depClass(d)">{{ d }}</span>
-          <span v-for="p in e.permissions" :key="p" class="chip" :class="{ 'chip-danger': p === 'onebot.dangerous' }">
-            {{ permLabel(p) }}
-          </span>
-          <span v-if="e.observe" class="chip">观察全量消息</span>
           <span v-for="t in e.tags ?? []" :key="t" class="chip" :class="tagClass(t)">#{{ t }}</span>
         </div>
 
@@ -249,6 +285,15 @@ function tagClass(t: string): string {
   font-size: 14.5px;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
+}
+.store-sort {
+  padding: 10px 12px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-2);
+  font-size: 13.5px;
+  cursor: pointer;
 }
 .store-search:focus {
   border-color: var(--vp-c-brand-1);

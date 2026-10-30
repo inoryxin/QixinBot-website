@@ -92,10 +92,12 @@ function dl(url, useProxy) {
 
 // ---------- git（website 仓库：registry 变更提交推送） ----------
 function gitRegistryCommit(msg) {
-  // 仓库只有一个远程（gitea，main 跟踪它），用裸 git push 走上游
-  execSync(`git add docs/plugins/registry.json && git commit -m ${JSON.stringify(msg)} && git push`, {
-    cwd: ROOT, stdio: 'pipe',
-  })
+  // 仓库只有一个远程（gitea，main 跟踪它），用裸 git push 走上游；
+  // 纯分类改动时 registry.json 可能无变化，空暂存就跳过 commit 只推送
+  execSync(
+    `git add docs/plugins && (git diff --cached --quiet || git commit -m ${JSON.stringify(msg)}) && git push`,
+    { cwd: ROOT, stdio: 'pipe' },
+  )
 }
 
 // ---------- 包解析 / 扫描 ----------
@@ -439,12 +441,16 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/categories/save' && req.method === 'POST') {
       const { cats } = await readBody(req)
       if (!cats || typeof cats !== 'object' || Object.keys(cats).length === 0) throw new Error('分类不能为空')
-      const removed = Object.keys(readCats()).filter((k) => !(k in cats))
-      const inUse = readReg().filter((e) => removed.includes(e.category)).map((e) => e.id)
-      if (inUse.length) throw new Error(`分类仍有条目在用：${inUse.join('、')}——先给它们改分类再删`)
+      if (!('other' in cats)) throw new Error('必须保留默认分类 other（其他）——被删分类的条目会归入它')
+      const entries = readReg()
+      const reassigned = []
+      for (const e of entries) {
+        if (!(e.category in cats)) { e.category = 'other'; reassigned.push(e.id) }
+      }
       writeFileSync(CATS_PATH(), JSON.stringify(cats, null, 2) + '\n')
-      gitRegistryCommit('商店后台：更新分类')
-      return json(res, 200, { ok: true, cats })
+      writeReg(entries)
+      gitRegistryCommit(`商店后台：更新分类${reassigned.length ? `（${reassigned.length} 个条目归入其他）` : ''}`)
+      return json(res, 200, { ok: true, cats, reassigned })
     }
     if (url.pathname === '/api/registry/save' && req.method === 'POST') {
       const { entries, msg } = await readBody(req)
@@ -466,5 +472,8 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`✓ 插件商店管理台已启动：http://localhost:${PORT}`)
-  console.log('  配置文件：tools/gui-config.json（含 token，勿提交）')
+  console.log('  配置：' + CONFIG_PATH)
+  if (!process.argv.includes('--no-open')) {
+    try { execSync(`start "" "http://localhost:${PORT}"`, { shell: 'cmd.exe', stdio: 'ignore' }) } catch {}
+  }
 })
