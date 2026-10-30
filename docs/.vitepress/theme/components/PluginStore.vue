@@ -42,6 +42,7 @@ const catOf = (e: PluginEntry) => (CATEGORIES[e.category] ? e.category : DEFAULT
 
 // 置顶快捷筛选：@node / @python 按「语言 OR 依赖」判定（Node.js 运行时算 Node、Python 运行时算 Python）
 function quickMatch(e: PluginEntry, key: string): boolean {
+  if (key === 'all') return true
   if (key === '@node')
     return !isPythonSide(e.language) || (e.deps ?? []).some((d) => !isPythonSide(d))
   if (key === '@python')
