@@ -94,19 +94,46 @@ JSON 里增删改条目**，没有单独的图形后台。改完提交推送、�
 
 ## 插件上传程序
 
-不想用 git 提交 `.anzu` 包时，用上传程序直接推到 Gitea 插件仓库：
+不想用 git 时，用发布程序把插件推到 Gitea 插件仓库（推荐目录模式，一次提交全部内容）：
 
 ```bash
-node tools/upload-plugin.mjs path/to/my-plugin.anzu          # 先 dry-run 预览
-node tools/upload-plugin.mjs path/to/my-plugin.anzu --yes    # 真正提交
+# 目录模式：源码 + README.md + .anzu 包（自动找 <id>.anzu，或 --anzu 指定）一次提交
+node tools/upload-plugin.mjs path/to/my-plugin --yes
+
+# 只传 .anzu 包
+node tools/upload-plugin.mjs path/to/my-plugin.anzu --yes
 ```
 
-- 自动解析包内 manifest.toml（id/中文名/版本），提交到 `packages/<id>.anzu`；
-  已存在则带 sha 覆盖更新
+- 自动解析 manifest.toml（id/中文名/版本）；目录模式提交到 `src/<目录名>/`，
+  包提交到 `packages/<id>.anzu`；已存在的文件带 sha 覆盖更新
+- 单文件 >2MB 会跳过并提示（大文件走 LFS 或 release）
 - token 依次找：`--token` → 环境变量 `GITEA_TOKEN` → `~/.gitea_nas_token.txt`
   （支持裸 token 和 git 凭据 URL 两种格式）
 - 提交后 mirror 自动同步到 GitHub，raw 直链即可下载
-- **商店展示是另一回事**：还要往 `docs/plugins/registry.json` 加/改条目（见上节）
+- **商店展示是另一回事**：还要往 `docs/plugins/registry.json` 加/改条目（见下节）
+
+## 第三方插件审核流程
+
+有人发了[收录申请 Issue](repo://QixinBot-go-plugins/issues) 后：
+
+```bash
+# 1. 审查助手：拉 issue → 下载 .anzu → 核对 manifest → 安全扫描 → 生成 registry 条目
+node tools/review-plugin.mjs <issue编号>            # 只看报告
+node tools/review-plugin.mjs <issue编号> --write    # 通过后：把条目写进 registry.json
+```
+
+工具输出包含：申请内容、包内 manifest 与申请的交叉核对、**安全扫描**
+（包内全部外联地址清单 + eval/子进程/凭据关键词/文件写入等可疑模式提示），
+以及一条可直接入库的第三方条目（带公钥指纹、免责徽章）。
+
+**人工清单**（工具只是辅助，结论由人下）：
+
+1. 源码仓库通读一遍，行为与 manifest 权限声明一致（要 write 就只发消息，别要 dangerous）
+2. `qixinpack verify` / 起本地环境实测一遍主要指令
+3. 安全扫描里的 ⚠ 项逐条确认（外联地址是不是它宣称的服务）
+4. `--write` 入库 → 检查 registry.json 的 diff → 提交推送 → 商店生效
+
+不通过就关 issue 并留言原因；上架后出问题，从 registry.json 删条目即下架。
 
 ## 插件仓库与 Wiki 分工
 

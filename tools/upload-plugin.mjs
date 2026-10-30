@@ -1,26 +1,29 @@
 #!/usr/bin/env node
 /**
- * 插件上传程序：把 .anzu 包提交到 Gitea 插件仓库的 packages/ 目录。
+ * 插件发布程序：往 Gitea 插件仓库提交 .anzu 包，或整个插件目录（源码 + 说明 + 包）。
  *
  * 用法：
- *   node tools/upload-plugin.mjs <file.anzu> [选项]
+ *   node tools/upload-plugin.mjs <file.anzu> [选项]          只传 .anzu 包
+ *   node tools/upload-plugin.mjs <plugin-dir> [选项]         传整个插件目录（推荐）
+ *       目录须含 manifest.toml；目录里所有文件提交到 src/<id>/，
+ *       README.md 一起上去；--anzu 指定包（或自动找目录旁的 <id>.anzu）
  *
  * 选项：
- *   --yes            真正提交（默认只做 dry-run 预览）
+ *   --yes            真正提交（默认 dry-run 预览）
+ *   --anzu <file>    目录模式下同时提交的 .anzu 包
  *   --token <tok>    Gitea token；否则读环境变量 GITEA_TOKEN；
- *                    否则读 ~/.gitea_nas_token.txt
+ *                    否则读 ~/.gitea_nas_token.txt（支持裸 token 或凭据 URL）
  *   --repo <name>    目标仓库（默认 QixinBot-go-plugins）
  *   --owner <name>   仓库属主（默认 inoryxin）
  *   --branch <name>  目标分支（默认 main）
  *   --gitea <url>    Gitea 地址（默认 http://10.0.0.140:30008）
  *
- * 流程：解析 .anzu 内的 manifest.toml 拿 id/版本 → 查目标路径是否已存在
- *       （存在则带上 sha 覆盖更新）→ PUT contents API 提交。
- * 上传成功后别忘了往 docs/plugins/registry.json 加条目，商店才会展示。
+ * 提交成功后 mirror 自动同步 GitHub；商店展示记得更新 docs/plugins/registry.json。
  */
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
+import { join, dirname, relative, basename, resolve } from 'node:path'
 import { homedir } from 'node:os'
-import { inflateRawSync } from 'node:zlib'
+import { readZipEntry, parseManifest } from './lib-anzu.mjs'
 import process from 'node:process'
 
 // ---------- 参数 ----------
@@ -29,8 +32,9 @@ function opt(name) {
   const i = args.indexOf(name)
   return i >= 0 ? args[i + 1] : undefined
 }
-const file = args.find((a) => !a.startsWith('--'))
+const target = args.find((a) => !a.startsWith('--'))
 const yes = args.includes('--yes')
+const anzuOpt = opt('--anzu')
 const owner = opt('--owner') ?? 'inoryxin'
 const repo = opt('--repo') ?? 'QixinBot-go-plugins'
 const branch = opt('--branch') ?? 'main'
@@ -40,7 +44,6 @@ let token = opt('--token') ?? process.env.GITEA_TOKEN
 if (!token) {
   const tokenFile = `${homedir()}/.gitea_nas_token.txt`
   if (existsSync(tokenFile)) {
-    // 兼容两种内容：裸 token，或 git 凭据 URL（http://user:token@host）
     const rawTok = readFileSync(tokenFile, 'utf8').trim()
     const m = rawTok.match(/^https?:\/\/[^:/@]+:([^@]+)@/)
     token = m ? m[1] : rawTok
@@ -50,104 +53,139 @@ if (!token) {
   console.error('✗ 找不到 Gitea token：--token / 环境变量 GITEA_TOKEN / ~/.gitea_nas_token.txt')
   process.exit(1)
 }
-
-if (!file || !existsSync(file)) {
-  console.error('✗ 用法：node tools/upload-plugin.mjs <file.anzu> [--yes]')
+if (!target || !existsSync(target)) {
+  console.error('✗ 用法：node tools/upload-plugin.mjs <file.anzu | plugin-dir> [--yes] [--anzu file]')
   process.exit(1)
 }
 
-// ---------- zip 解析（零依赖，只取 manifest.toml） ----------
-function readZipEntry(buf, want) {
-  // 从尾部找 EOCD
-  let eocd = -1
-  for (let i = buf.length - 22; i >= Math.max(0, buf.length - 66000); i--) {
-    if (buf.readUInt32LE(i) === 0x06054b50) { eocd = i; break }
-  }
-  if (eocd < 0) throw new Error('不是合法的 zip（找不到 EOCD），确认是 .anzu 包')
-  const count = buf.readUInt16LE(eocd + 10)
-  let off = buf.readUInt32LE(eocd + 16)
-  for (let n = 0; n < count; n++) {
-    if (buf.readUInt32LE(off) !== 0x02014b50) throw new Error('zip 中央目录损坏')
-    const method = buf.readUInt16LE(off + 10)
-    const csize = buf.readUInt32LE(off + 20)
-    const nameLen = buf.readUInt16LE(off + 28)
-    const extraLen = buf.readUInt16LE(off + 30)
-    const commentLen = buf.readUInt16LE(off + 32)
-    const lho = buf.readUInt32LE(off + 42)
-    const name = buf.slice(off + 46, off + 46 + nameLen).toString('utf8')
-    if (name === want) {
-      const lnLen = buf.readUInt16LE(lho + 26)
-      const leLen = buf.readUInt16LE(lho + 28)
-      const dataStart = lho + 30 + lnLen + leLen
-      const data = buf.slice(dataStart, dataStart + csize)
-      return method === 8 ? inflateRawSync(data) : data
+// ---------- 收集待提交文件：path → Buffer ----------
+const SKIP = new Set(['.git', 'node_modules', 'dist', 'build', '__pycache__', '.DS_Store'])
+const files = [] // { path, buf }
+let id, ver, name, manifestText
+
+function collectDir(dir, destPrefix) {
+  for (const entry of readdirSync(dir)) {
+    if (SKIP.has(entry)) continue
+    const full = join(dir, entry)
+    if (statSync(full).isDirectory()) {
+      collectDir(full, `${destPrefix}/${entry}`)
+      continue
     }
-    off += 46 + nameLen + extraLen + commentLen
+    if (statSync(full).size > 2 * 1024 * 1024) {
+      console.warn(`  ⚠ 跳过超过 2MB 的文件：${entry}（大文件请走 LFS 或 release）`)
+      continue
+    }
+    files.push({ path: `${destPrefix}/${entry}`, buf: readFileSync(full) })
   }
-  return null
 }
 
-const raw = readFileSync(file)
-let manifest
-try {
-  manifest = readZipEntry(raw, 'manifest.toml')?.toString('utf8') ?? ''
-} catch (e) {
-  console.error('✗', e.message)
-  process.exit(1)
+if (statSync(target).isDirectory()) {
+  const mPath = join(target, 'manifest.toml')
+  if (!existsSync(mPath)) {
+    console.error('✗ 目录里没有 manifest.toml（应在插件根目录）')
+    process.exit(1)
+  }
+  manifestText = readFileSync(mPath, 'utf8')
+  ;({ id, version: ver, name } = parseManifest(manifestText))
+  // 仓库目录名 = 上传者放的位置；与 manifest id 不一致时明确告警
+  const dirName = basename(resolve(target))
+  if (id && id !== dirName) {
+    console.warn(`  ⚠ manifest id（${id}）与目录名（${dirName}）不一致：源码将提交到 src/${dirName}/，包名仍按 id 为 ${id}.anzu`)
+  }
+  collectDir(target, `src/${dirName}`)
+  // 附带 .anzu：--anzu 指定 > 目录旁/上层/dist 的 <id>.anzu
+  const anzuFile = anzuOpt ?? [join(target, `${id}.anzu`), join(dirname(target), `${id}.anzu`), join(target, 'dist', `${id}.anzu`)]
+    .find((p) => existsSync(p))
+  if (anzuFile) {
+    files.push({ path: `packages/${id}.anzu`, buf: readFileSync(anzuFile) })
+    console.log(`• 附带包：${basename(anzuFile)}`)
+  } else {
+    console.log('• 未找到 .anzu 包（只提交源码与说明）。可用 --anzu 指定')
+  }
+} else {
+  const raw = readFileSync(target)
+  try {
+    manifestText = readZipEntry(raw, 'manifest.toml')?.toString('utf8') ?? ''
+  } catch (e) {
+    console.error('✗', e.message)
+    process.exit(1)
+  }
+  if (!manifestText) {
+    console.error('✗ 包里没有 manifest.toml——确认这是 qixinpack pack 出来的 .anzu')
+    process.exit(1)
+  }
+  ;({ id, version: ver, name } = parseManifest(manifestText))
+  files.push({ path: `packages/${id}.anzu`, buf: raw })
 }
-if (!manifest) {
-  console.error('✗ 包里没有 manifest.toml——确认这是 qixinpack pack 出来的 .anzu')
-  process.exit(1)
-}
-const pick = (k) => manifest.match(new RegExp(`^${k}\\s*=\\s*"?([^"\\n]+)"?`, 'm'))?.[1]?.trim()
-const pid = pick('id')
-const pver = pick('version') ?? '?'
-const pname = pick('name') ?? pid
-if (!pid) {
+if (!id) {
   console.error('✗ manifest.toml 里没有 id 字段')
   process.exit(1)
 }
+ver = ver ?? '?'
 
-const destPath = `packages/${pid}.anzu`
-const api = `${gitea}/api/v1/repos/${owner}/${repo}/contents/${destPath}`
+const kind = manifestText.includes('kind = "theme"') ? '主题' : '插件'
+const message = `发布${kind} ${name}(${id}) v${ver}（发布程序：${files.length} 个文件）`
+console.log(`\n${kind}：${name}（${id}）v${ver}  →  ${owner}/${repo}@${branch}`)
+console.log(`提交说明：${message}\n`)
+
+// ---------- 查已存在文件（update 需要 sha） ----------
+const apiBase = `${gitea}/api/v1/repos/${owner}/${repo}/contents`
 const headers = { Authorization: `token ${token}`, 'Content-Type': 'application/json' }
-
-// ---------- 查已存在（拿 sha 用于覆盖） ----------
-let sha
-const getRes = await fetch(api + `?ref=${branch}`, { headers })
-if (getRes.status === 200) {
-  sha = (await getRes.json()).sha
-  console.log(`• ${destPath} 已存在（将覆盖更新）`)
-} else if (getRes.status !== 404) {
-  console.error(`✗ 查询失败：HTTP ${getRes.status}`, await getRes.text())
-  process.exit(1)
+let changed = 0, created = 0
+for (const f of files) {
+  const r = await fetch(`${apiBase}/${f.path}?ref=${branch}`, { headers })
+  if (r.status === 200) { f.sha = (await r.json()).sha; changed++ }
+  else if (r.status !== 404) {
+    console.error(`✗ 查询 ${f.path} 失败：HTTP ${r.status}`, (await r.text()).slice(0, 200))
+    process.exit(1)
+  } else created++
 }
-
-const body = {
-  branch,
-  content: raw.toString('base64'),
-  message: sha
-    ? `上传插件 ${pname}(${pid}) v${pver}（上传程序覆盖更新）`
-    : `上传插件 ${pname}(${pid}) v${pver}（上传程序）`,
+for (const f of files) {
+  const kb = (f.buf.length / 1024).toFixed(1)
+  console.log(`  ${f.sha ? '改' : '新'} ${f.path}  (${kb} KB)`)
 }
-if (sha) body.sha = sha
-
-const sizeMB = (raw.length / 1024 / 1024).toFixed(1)
-console.log(`包：${pname}（${pid}）v${pver}，${sizeMB} MB`)
-console.log(`目标：${owner}/${repo}@${branch} → ${destPath}${sha ? '（覆盖）' : '（新增）'}`)
+console.log(`共 ${files.length} 个文件（新增 ${created}，覆盖 ${changed}）\n`)
 
 if (!yes) {
-  console.log('\n[dry-run] 未提交。确认无误后加 --yes 真正上传。')
+  console.log('[dry-run] 未提交。确认无误后加 --yes 真正发布。')
   process.exit(0)
 }
 
-const putRes = await fetch(api, { method: 'PUT', headers, body: JSON.stringify(body) })
-const resp = await putRes.json().catch(() => ({}))
-if (!putRes.ok) {
-  console.error(`✗ 上传失败：HTTP ${putRes.status}`, JSON.stringify(resp).slice(0, 300))
-  process.exit(1)
+// ---------- 提交：优先 changefiles 单提交，失败回退逐文件 ----------
+async function commitSingle() {
+  const res = await fetch(`${apiBase}/changefiles`, {
+    method: 'POST', headers,
+    body: JSON.stringify({
+      branch,
+      message,
+      files: files.map((f) => ({
+        operation: f.sha ? 'update' : 'create',
+        path: f.path,
+        content_base64: f.buf.toString('base64'),
+        ...(f.sha ? { sha: f.sha } : {}),
+      })),
+    }),
+  })
+  if (!res.ok) throw new Error(`changefiles HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`)
 }
-console.log(`✓ 已提交：${resp.commit?.html_url ?? gitea + '/' + owner + '/' + repo}`)
-console.log(`  Gitea 原始链接：${gitea}/${owner}/${repo}/raw/branch/${branch}/${destPath}`)
-console.log(`  GitHub 链接：https://github.com/${owner}/${repo}/raw/${branch}/${destPath}`)
-console.log(`\n下一步：往 docs/plugins/registry.json 加/更新条目（version=${pver}），商店才会刷新。`)
+
+async function commitPerFile() {
+  for (const f of files) {
+    const body = { branch, content: f.buf.toString('base64'), message }
+    if (f.sha) body.sha = f.sha
+    const res = await fetch(`${apiBase}/${f.path}`, { method: 'PUT', headers, body: JSON.stringify(body) })
+    if (!res.ok) throw new Error(`PUT ${f.path} HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`)
+  }
+}
+
+try {
+  await commitSingle()
+  console.log(`✓ 单提交完成：${gitea}/${owner}/${repo}/commit/... （${files.length} 个文件一次入库）`)
+} catch (e) {
+  console.warn(`  changefiles 不可用（${e.message.slice(0, 80)}），回退逐文件提交…`)
+  await commitPerFile()
+  console.log(`✓ 已逐文件提交 ${files.length} 个`)
+}
+
+console.log(`\n✓ 发布完成！预览：${gitea}/${owner}/${repo}/src/branch/${branch}/src/${id}/README.md`)
+console.log('  GitHub 1 分钟内自动同步；商店展示记得更新 docs/plugins/registry.json。')
