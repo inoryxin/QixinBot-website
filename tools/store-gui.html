@@ -82,7 +82,7 @@
       <div class="row">
         <h2>商店条目（registry.json）</h2>
         <button class="act" onclick="loadStore()">↻ 重新加载</button>
-        <button class="primary" onclick="saveStore()">💾 保存全部（提交并推送）</button>
+        <button class="primary" id="saveAllBtn" onclick="saveStore()">💾 保存全部（提交并推送）</button>
         <span class="muted">改 tag / 分类 / 版本 / 下架都在这里，保存即提交 website 仓库</span>
       </div>
       <div class="row" style="margin-bottom:12px">
@@ -118,7 +118,7 @@
         <input id="newCatKey" placeholder="key（英文，如 media）" style="width:200px">
         <input id="newCatLabel" placeholder="显示名（如 媒体）" style="width:200px">
         <button class="act" onclick="addCat()">＋ 添加分类</button>
-        <button class="primary" onclick="saveCats()">💾 保存分类</button>
+        <button class="primary" id="saveCatsBtn" onclick="saveCats()">💾 保存分类</button>
       </div>
     </div>
   </section>
@@ -296,6 +296,8 @@ let storeEntries = []
 async function loadStore() {
   storeEntries = (await api('/api/registry')).entries
   await loadCats()
+  storeDirty = false
+  const sb = $('#saveAllBtn'); if (sb) sb.textContent = '💾 保存全部（提交并推送）'
   stPage = 1
   renderStore()
   renderCats()
@@ -356,7 +358,7 @@ function renderStore() {
   }).join('')
 }
 function stGo(p) { stPage = p; renderStore() }
-function editEntry(i, k, v) { storeEntries[i][k] = v }
+function editEntry(i, k, v) { storeEntries[i][k] = v; markStoreDirty() }
 function renderCats() {
   const used = {}
   storeEntries.forEach(e => used[e.category] = (used[e.category] ?? 0) + 1)
@@ -384,25 +386,40 @@ function addCat() {
   if (cats[k]) return toast('key 已存在', true)
   cats[k] = v; renderCats()
 }
+async function postCatsSave() {
+  await api('/api/categories/save', { cats })
+  catsDirty = false
+  const b = $('#saveCatsBtn'); if (b) b.textContent = '💾 保存分类'
+  renderStore()
+}
 async function saveCats() {
-  try { await api('/api/categories/save', { cats }); toast('✓ 分类已保存推送（条目已归入其他，官网部署中）'); renderStore() }
+  try { await postCatsSave(); toast('✓ 分类已保存推送（条目已归入其他，官网部署中）') }
   catch (e) { toast(e.message, true) }
 }
 function delEntry(i) {
-  if (!confirm(`下架 ${storeEntries[i].name}（${storeEntries[i].id}）？保存后生效；.anzu 包仍在插件仓库。`)) return
-  storeEntries.splice(i, 1); renderStore()
+  if (!confirm(`下架 ${storeEntries[i].name}（${storeEntries[i].id}）？点「同步」会自动保存并生效。`)) return
+  storeEntries.splice(i, 1); markStoreDirty(); renderStore()
 }
 function addEntry() {
   try {
     const e = JSON.parse($('#newEntry').value)
     if (storeEntries.some(x => x.id === e.id)) throw new Error('id 已存在')
     e.tags = e.tags ?? []
-    storeEntries.push(e); renderStore(); $('#newEntry').value = ''
+    storeEntries.push(e); markStoreDirty(); renderStore(); $('#newEntry').value = ''
   } catch (err) { toast('JSON 无效：' + err.message, true) }
+}
+function markStoreDirty() {
+  storeDirty = true
+  const b = $('#saveAllBtn'); if (b) b.textContent = '💾 保存全部（有未保存修改）'
+}
+async function postStoreSave() {
+  await api('/api/registry/save', { entries: storeEntries, msg: `商店后台更新 registry（${storeEntries.length} 条）` })
+  storeDirty = false
+  const b = $('#saveAllBtn'); if (b) b.textContent = '💾 保存全部（提交并推送）'
 }
 async function saveStore() {
   try {
-    await api('/api/registry/save', { entries: storeEntries, msg: `商店后台更新 registry（${storeEntries.length} 条）` })
+    await postStoreSave()
     const ad = $('#c_autoDeploy')
     toast(ad?.checked ? '✓ 已保存推送，自动部署官网中…' : '✓ 已保存推送（记得部署官网）')
     loadStore()
@@ -499,6 +516,9 @@ async function deploySite() {
 async function syncAll(btn) {
   const old = btn.textContent; btn.disabled = true; btn.textContent = '⏳ 同步中…'
   try {
+    const pre = []
+    if (storeDirty) { await postStoreSave(); pre.push('商店条目') }
+    if (catsDirty) { await postCatsSave(); pre.push('分类') }
     await api('/api/sync-all', {})
     let s
     do {
@@ -506,7 +526,7 @@ async function syncAll(btn) {
       s = await api('/api/deploy-status')
     } while (s.busy)
     if (s.ok === false) throw new Error(s.error || '部署失败')
-    toast('✓ 同步完成：GitHub 镜像 + 官网已刷新')
+    toast(`✓ 同步完成${pre.length ? '（' + pre.join('、') + '已保存' : ''}）：官网已刷新`)
     document.querySelector('#tabs button.active')?.click()
   } catch (e) { toast('✗ ' + e.message, true) }
   finally { btn.disabled = false; btn.textContent = old }

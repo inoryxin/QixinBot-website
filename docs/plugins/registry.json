@@ -536,5 +536,23 @@
     "package": "repo://QixinBot-go-plugins/raw/main/packages/xueran.anzu",
     "fingerprint": null,
     "tags": []
+  },
+  {
+    "id": "watch",
+    "name": "祈歆状态",
+    "tier": "official",
+    "kind": "plugin",
+    "category": "tool",
+    "description": "视奸祈歆 / 祈歆在干嘛 — 读取 home.inory.xin 状态页",
+    "language": "Node.js",
+    "deps": [],
+    "permissions": [],
+    "observe": false,
+    "version": "1.0.0",
+    "author": "QixinBot 官方",
+    "repo": "repo://QixinBot-go-plugins/tree/main/src/watch",
+    "package": "repo://QixinBot-go-plugins/raw/main/packages/watch.anzu",
+    "fingerprint": null,
+    "tags": []
   }
 ]
