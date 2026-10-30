@@ -15,7 +15,7 @@ import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdtemp
 import { join, dirname, resolve, basename } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { execSync, exec as cpExec } from 'node:child_process'
+import { execSync, exec as cpExec, spawn as cpSpawn } from 'node:child_process'
 import { promisify } from 'node:util'
 import { listZipEntries, parseManifest } from './lib-anzu.mjs'
 
@@ -39,6 +39,7 @@ const CFG_DEFAULT = {
   nasYamlPath: 'C:/Users/anzu/Documents/xin/nas.yaml',
   // exe 模式下必填：官网（website 仓库）本地路径，registry/分类/部署都在里面
   repoPath: 'C:/Users/anzu/Documents/xin/zcode/QixinBot-website',
+  bashPath: '',
 }
 let CFG = { ...CFG_DEFAULT }
 let ROOT, CONFIG_PATH
@@ -290,11 +291,37 @@ async function runDeploy() {
   if (deployState.busy) return { started: false, reason: '已有部署在进行中' }
   let keyPath
   deployState.busy = true; deployState.log = []; deployState.ok = null; deployState.error = null
-  const run = async (cmd) => {
-    deployState.log.push('$ ' + cmd)
-    try { const { stdout } = await execP(cmd, { cwd: ROOT, shell: 'bash.exe', maxBuffer: 16 * 1024 * 1024, timeout: 240000 }); deployState.log.push(stdout) }
-    catch (e) { deployState.log.push(String(e.stderr || e.message).slice(0, 800)); throw e }
+  // 显式定位 Git Bash：PATH 里的 bash.exe 在双击启动的 exe 环境里可能解析到 WSL 的
+  // System32\bash.exe（/c/... 盘符映射不同），导致部署在 WSL 里跑、密钥路径"不存在"
+  function findBash() {
+    if (CFG.bashPath && existsSync(CFG.bashPath)) return CFG.bashPath
+    const candidates = [
+      'C:/Program Files/Git/bin/bash.exe',
+      'C:/Program Files (x86)/Git/bin/bash.exe',
+    ]
+    try {
+      const gitWhere = execSync('where git', { stdio: ['pipe', 'pipe', 'ignore'] }).toString().split('\n')[0].trim()
+      if (/\\cmd\\git\.exe$/i.test(gitWhere)) candidates.unshift(join(dirname(dirname(gitWhere)), 'bin', 'bash.exe'))
+      if (/\\bin\\git\.exe$/i.test(gitWhere)) candidates.unshift(join(dirname(gitWhere), 'bash.exe'))
+    } catch {}
+    for (const c of candidates) if (existsSync(c)) return c
+    throw new Error('找不到 Git Bash（设置里可填 bashPath 手动指定）——没有它无法构建和部署')
   }
+  const bashPath = findBash()
+  deployState.log.push('• bash：' + bashPath)
+  const run = (cmd) => new Promise((resolve, reject) => {
+    deployState.log.push('$ ' + cmd)
+    const child = cpSpawn(bashPath, ['-c', 'export PATH="/usr/bin:$PATH"; ' + cmd], { cwd: ROOT })
+    let out = ''
+    child.stdout.on('data', (d) => { out += d })
+    child.stderr.on('data', (d) => { out += d })
+    const killer = setTimeout(() => child.kill(), 240000)
+    child.on('exit', (code) => {
+      clearTimeout(killer)
+      deployState.log.push(out.slice(0, 1600))
+      code === 0 ? resolve() : reject(new Error(`命令失败(code ${code}): ${cmd.slice(0, 80)}\n${out.slice(-500)}`))
+    })
+  })
   ;(async () => {
     try {
       keyPath = ensureDeployKey(deployState.log)
