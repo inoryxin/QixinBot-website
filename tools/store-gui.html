@@ -520,7 +520,8 @@ async function tickSyncStatus() {
     const s = await api('/api/deploy-status')
     if (s.busy) {
       if (!busySince) busySince = Date.now()
-      el.innerHTML = `<span style="color:#d29922">⏳ 官网部署中 ${Math.round((Date.now() - busySince) / 1000)}s…</span>`
+      const secs = Math.round((Date.now() - busySince) / 1000)
+      el.innerHTML = `<span style="color:#d29922">⏳ 官网部署中 ${secs}s…${secs > 90 ? '（超过 90s 了，可在设置页点「部署官网」看日志）' : ''}</span>`
     } else {
       if (busySince) { el.innerHTML = `<span style="color:#3fb950">✓ 官网已更新 ${new Date().toLocaleTimeString('zh-CN', { hour12: false })}</span>`; setTimeout(() => { el.innerHTML = '' }, 8000); busySince = null }
       else if (s.ok === false) { el.innerHTML = '<span style="color:#f85149">✗ 上次部署失败（设置页看日志）</span>' }
