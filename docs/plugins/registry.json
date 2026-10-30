@@ -404,26 +404,6 @@
     "tags": []
   },
   {
-    "id": "sleep-guard",
-    "name": "催睡",
-    "tier": "official",
-    "kind": "plugin",
-    "category": "device",
-    "description": "凌晨 5 点看主人设备还亮着就用 AI 私聊催睡，半小时后还不睡再催一次",
-    "language": "Node.js",
-    "deps": [],
-    "permissions": [
-      "onebot.write"
-    ],
-    "observe": false,
-    "version": "1.0.0",
-    "author": "QixinBot 官方",
-    "repo": "repo://QixinBot-go-plugins/tree/main/src/sleep-guard",
-    "package": "repo://QixinBot-go-plugins/raw/main/packages/sleep-guard.anzu",
-    "fingerprint": null,
-    "tags": []
-  },
-  {
     "id": "status",
     "name": "服务器状态",
     "tier": "official",
