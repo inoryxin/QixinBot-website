@@ -193,16 +193,18 @@ function toast(msg, err) {
 }
 
 // ---- tabs ----
-document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
-  if (!b.dataset.tab) return // 🔄 同步按钮在 nav 里但不是页签
-  document.querySelectorAll('#tabs button').forEach(x => x.classList.remove('active'))
-  document.querySelectorAll('main section').forEach(s => s.style.display = 'none')
-  b.classList.add('active')
-  $('#tab-' + b.dataset.tab).style.display = 'block'
-  if (b.dataset.tab === 'review') loadIssues()
-  if (b.dataset.tab === 'store') loadStore()
-  if (b.dataset.tab === 'compare') loadCompare()
-  if (b.dataset.tab === 'settings') loadCfg()
+document.querySelectorAll('#tabs button').forEach(b => {
+  if (!b.dataset.tab) return // 🔄 同步按钮在 nav 里但不是页签，保留它自己的 onclick
+  b.onclick = () => {
+    document.querySelectorAll('#tabs button').forEach(x => x.classList.remove('active'))
+    document.querySelectorAll('main section').forEach(s => s.style.display = 'none')
+    b.classList.add('active')
+    $('#tab-' + b.dataset.tab).style.display = 'block'
+    if (b.dataset.tab === 'review') loadIssues()
+    if (b.dataset.tab === 'store') loadStore()
+    if (b.dataset.tab === 'compare') loadCompare()
+    if (b.dataset.tab === 'settings') loadCfg()
+  }
 })
 
 // ---- 审核队列 ----
