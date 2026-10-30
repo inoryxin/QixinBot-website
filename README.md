@@ -49,6 +49,49 @@ docs/
   和 `download.md` 的版本号、资产链接。
 - 迁移自 Wiki 的页面里，站内链接已改写为本站路径（`/guide/...`、`/reference/...`）。
 
+## 插件商店管理（后台就是 registry.json）
+
+插件目录的数据文件是 `docs/plugins/registry.json`，**添加 / 删除 / 改 tag 都是在这个
+JSON 里增删改条目**，没有单独的图形后台。改完提交推送、重新构建部署即生效。
+
+条目结构（两条模板，直接复制改字段）：
+
+```jsonc
+// 官方插件
+{
+  "id": "weather",                    // .anzu 的 manifest id，全表唯一
+  "name": "天气",                     // 卡片上的中文名
+  "tier": "official",                 // official=官方 / third-party=第三方
+  "kind": "plugin",                   // plugin=插件 / theme=主题
+  "category": "tool",                 // 见下面分类表
+  "description": "一句话简介",
+  "language": "Node.js",              // Node.js / Python / CSS(主题)
+  "deps": [],                         // 依赖，如 ["Python 运行时", "Pillow"]
+  "permissions": ["onebot.write"],    // onebot.write / onebot.admin / onebot.dangerous
+  "observe": false,                   // 是否观察全量消息
+  "version": "1.0.0",
+  "author": "QixinBot 官方",
+  "repo": "repo://QixinBot-go-plugins/tree/main/src/weather",
+  "package": "repo://QixinBot-go-plugins/raw/main/packages/weather.anzu",
+  "fingerprint": null,                // 第三方填 ed25519 指纹，官方留 null
+  "tags": ["查询", "生活"]            // 自由 tag，#前缀展示、可被搜索
+}
+```
+
+分类 `category` 可选值：`ai`（AI 助手）/ `fun`（娱乐互动）/ `feed`（订阅推送）/
+`group`（群聊管理）/ `tool`（工具查询）/ `device`（设备管家）/ `theme`（主题）。
+
+常用操作：
+
+- **上架官方插件**：源码和 `.anzu` 放进 QixinBot-go-plugins 仓库 → registry.json 加一条
+- **删除/下架**：删掉对应条目（插件包本体要不要删在 plugins 仓库里另操作）
+- **改 tag / 改简介 / 转正第三方为官方**：直接改对应字段
+- **第三方收录**：作者按 issue 模板提交 → 审核通过后按上面模板加条目，
+  `tier` 设为 `third-party`、`fingerprint` 填公钥指纹
+
+徽章配色是自动的：Node.js 绿 / Python 蓝，依赖按所属生态分青色（Node 侧）与
+紫色（Python 侧），无需配置。
+
 ## 部署
 
 手动部署（本机构建 → 推到 1Panel 虚拟机）：

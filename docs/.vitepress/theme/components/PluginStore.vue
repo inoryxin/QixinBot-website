@@ -19,6 +19,7 @@ interface PluginEntry {
   repo: string
   package: string
   fingerprint: string | null
+  tags: string[]
 }
 
 const entries = registry as PluginEntry[]
@@ -54,7 +55,7 @@ const filtered = computed(() => {
     .filter((e) => activeCategory.value === 'all' || e.category === activeCategory.value)
     .filter((e) => {
       if (!q) return true
-      return [e.name, e.id, e.description, e.language, CATEGORIES[e.category] ?? '']
+      return [e.name, e.id, e.description, e.language, ...(e.tags ?? []), CATEGORIES[e.category] ?? '']
         .join(' ')
         .toLowerCase()
         .includes(q)
@@ -66,6 +67,17 @@ const filtered = computed(() => {
 
 function permLabel(p: string): string {
   return PERM_LABELS[p] ?? p
+}
+
+// 四色体系：Node.js 绿 / Python 蓝，依赖按所属生态再分青色（Node 侧）与紫色（Python 侧）
+function isPythonSide(s: string): boolean {
+  return /python|pillow|pip|numpy|torch/i.test(s)
+}
+function langClass(lang: string): string {
+  return isPythonSide(lang) ? 'chip-python' : 'chip-node'
+}
+function depClass(dep: string): string {
+  return isPythonSide(dep) ? 'chip-dep-python' : 'chip-dep-node'
 }
 </script>
 
@@ -110,12 +122,13 @@ function permLabel(p: string): string {
         <p class="card-desc">{{ e.description }}</p>
 
         <div class="card-meta">
-          <span class="chip">{{ e.language }}</span>
-          <span v-for="d in e.deps" :key="d" class="chip chip-dep">{{ d }}</span>
+          <span class="chip" :class="langClass(e.language)">{{ e.language }}</span>
+          <span v-for="d in e.deps" :key="d" class="chip" :class="depClass(d)">{{ d }}</span>
           <span v-for="p in e.permissions" :key="p" class="chip" :class="{ 'chip-danger': p === 'onebot.dangerous' }">
             {{ permLabel(p) }}
           </span>
           <span v-if="e.observe" class="chip">观察全量消息</span>
+          <span v-for="t in e.tags ?? []" :key="t" class="chip chip-tag">#{{ t }}</span>
         </div>
 
         <div v-if="e.fingerprint" class="card-fp">
@@ -199,7 +212,7 @@ function permLabel(p: string): string {
 }
 .store-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 14px;
 }
 .plugin-card {
@@ -270,12 +283,40 @@ function permLabel(p: string): string {
   color: var(--vp-c-text-2);
   white-space: nowrap;
 }
-.chip-dep {
-  background: rgba(59, 130, 246, 0.12);
-  color: #1d4ed8;
+/* 四色体系：语言 Node 绿 / Python 蓝；依赖 Node 侧青 / Python 侧紫 */
+.chip-node {
+  background: rgba(34, 197, 94, 0.14);
+  color: #15803d;
+  font-weight: 600;
 }
-.dark .chip-dep {
+.dark .chip-node {
+  color: #4ade80;
+}
+.chip-python {
+  background: rgba(59, 130, 246, 0.13);
+  color: #1d4ed8;
+  font-weight: 600;
+}
+.dark .chip-python {
   color: #93c5fd;
+}
+.chip-dep-node {
+  background: rgba(6, 182, 212, 0.13);
+  color: #0e7490;
+}
+.dark .chip-dep-node {
+  color: #67e8f9;
+}
+.chip-dep-python {
+  background: rgba(168, 85, 247, 0.14);
+  color: #7e22ce;
+}
+.dark .chip-dep-python {
+  color: #d8b4fe;
+}
+.chip-tag {
+  background: var(--vp-c-default-soft);
+  color: var(--vp-c-text-3);
 }
 .chip-danger {
   background: rgba(239, 68, 68, 0.12);

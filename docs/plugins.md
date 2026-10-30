@@ -1,3 +1,8 @@
+---
+outline: false
+pageClass: plugin-store-page
+---
+
 # 插件
 
 QixinBot 的插件目录：官方插件经过审核与长期稳定性验证；第三方插件由作者自己签名，

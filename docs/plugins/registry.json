@@ -14,7 +14,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/ai-affinity",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/ai-affinity.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "ai-chat",
@@ -33,7 +34,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/ai-chat",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/ai-chat.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "ai-life",
@@ -50,7 +52,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/ai-life",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/ai-life.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "ai-llm",
@@ -67,7 +70,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/ai-llm",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/ai-llm.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "ai-persona",
@@ -84,7 +88,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/ai-persona",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/ai-persona.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "ai-proactive",
@@ -101,7 +106,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/ai-proactive",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/ai-proactive.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "ai-sticker",
@@ -118,7 +124,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/ai-sticker",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/ai-sticker.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "ai-voice",
@@ -137,7 +144,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/ai-voice",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/ai-voice.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "bilibili",
@@ -156,7 +164,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/bilibili",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/bilibili.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "blog",
@@ -175,7 +184,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/blog",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/blog.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "cngal",
@@ -194,7 +204,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/cngal",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/cngal.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "echo",
@@ -213,7 +224,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/echo",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/echo.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "emojimix",
@@ -230,7 +242,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/emojimix",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/emojimix.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "fortune",
@@ -249,7 +262,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/fortune",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/fortune.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "group-manager",
@@ -266,7 +280,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/group-manager",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/group-manager.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "home-assistant",
@@ -285,7 +300,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/home-assistant",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/home-assistant.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "jm-download",
@@ -307,7 +323,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/jm-download",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/jm-download.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "keyword-reply",
@@ -326,7 +343,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/keyword-reply",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/keyword-reply.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "ncm-saying",
@@ -343,7 +361,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/ncm-saying",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/ncm-saying.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "pc",
@@ -362,7 +381,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/pc",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/pc.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "qq-profile",
@@ -382,7 +402,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/qq-profile",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/qq-profile.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "rollpig",
@@ -399,7 +420,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/rollpig",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/rollpig.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "sleep-guard",
@@ -418,7 +440,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/sleep-guard",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/sleep-guard.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "status",
@@ -435,7 +458,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/status",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/status.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "trigger",
@@ -454,7 +478,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/trigger",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/trigger.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "ts3-tracker",
@@ -473,7 +498,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/ts3-tracker",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/ts3-tracker.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "watch",
@@ -490,7 +516,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/watch",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/watch.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "what2eat",
@@ -509,7 +536,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/src/what2eat",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/what2eat.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "sakura",
@@ -526,7 +554,8 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/themes/sakura",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/sakura.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   },
   {
     "id": "xueran",
@@ -543,6 +572,7 @@
     "author": "QixinBot 官方",
     "repo": "repo://QixinBot-go-plugins/tree/main/themes/xueran",
     "package": "repo://QixinBot-go-plugins/raw/main/packages/xueran.anzu",
-    "fingerprint": null
+    "fingerprint": null,
+    "tags": []
   }
 ]
