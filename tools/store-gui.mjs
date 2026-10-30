@@ -279,18 +279,22 @@ async function runDeploy() {
     }
   }
   if (!keyPath || !existsSync(keyPath)) throw new Error('没有部署私钥（设置里填 deployKeyPath 或确认 nas.yaml 可读）')
+  // 收紧私钥 ACL：Windows 自带 OpenSSH 会因权限过宽拒绝使用该密钥，转而隐形等待密码输入导致挂死
+  try {
+    execSync(`icacls "${keyPath}" /inheritance:r /grant:r "${process.env.USERNAME}":F`, { shell: 'cmd.exe', stdio: 'pipe' })
+  } catch {}
   deployState.busy = true; deployState.log = []; deployState.ok = null; deployState.error = null
   const run = async (cmd) => {
     deployState.log.push('$ ' + cmd)
-    try { const { stdout } = await execP(cmd, { cwd: ROOT, shell: 'bash.exe', maxBuffer: 16 * 1024 * 1024 }); deployState.log.push(stdout) }
+    try { const { stdout } = await execP(cmd, { cwd: ROOT, shell: 'bash.exe', maxBuffer: 16 * 1024 * 1024, timeout: 240000 }); deployState.log.push(stdout) }
     catch (e) { deployState.log.push(String(e.stderr || e.message).slice(0, 800)); throw e }
   }
   ;(async () => {
     try {
       await run('npx vitepress build docs 2>&1 | tail -2')
       await run('tar -C docs/.vitepress/dist -czf /tmp/site.tar.gz .')
-      await run(`scp -i "${keyPath}" -o StrictHostKeyChecking=accept-new /tmp/site.tar.gz root@10.0.0.123:/tmp/site.tar.gz`)
-      await run(`ssh -i "${keyPath}" -o StrictHostKeyChecking=accept-new root@10.0.0.123 "rm -rf /opt/qixinbot-site/* && tar -C /opt/qixinbot-site -xzf /tmp/site.tar.gz && rm /tmp/site.tar.gz"`)
+      await run(`scp -i "${keyPath}" -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new /tmp/site.tar.gz root@10.0.0.123:/tmp/site.tar.gz`)
+      await run(`ssh -i "${keyPath}" -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new root@10.0.0.123 "rm -rf /opt/qixinbot-site/* && tar -C /opt/qixinbot-site -xzf /tmp/site.tar.gz && rm /tmp/site.tar.gz"`)
       deployState.ok = true
       deployState.log.push('✓ 部署完成 http://10.0.0.123:8090')
     } catch (e) {

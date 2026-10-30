@@ -490,7 +490,7 @@ async function deploySite() {
   const log = $('#deployLog'); log.style.display = 'block'
   log.textContent = '启动部署…'
   try {
-    const r = await api('/api/deploy')
+    const r = await api('/api/deploy', {})
     if (r.started === false) { log.textContent = r.reason; return }
     await pollDeploy(log)
     toast('✓ 部署完成 http://10.0.0.123:8090')
