@@ -53,6 +53,7 @@
 <header>
   <h1>🧩 QixinBot 插件商店管理台</h1>
   <span class="muted" id="cfghint"></span>
+  <span id="syncStatus" style="font-size:12.5px"></span>
   <nav id="tabs">
     <button data-tab="review" class="active">审核队列 <span id="qcount"></span></button>
     <button data-tab="store">商店条目</button>
@@ -361,11 +362,21 @@ function renderCats() {
   storeEntries.forEach(e => used[e.category] = (used[e.category] ?? 0) + 1)
   $('#catTable tbody').innerHTML = Object.entries(cats).map(([k, v]) => `
     <tr>
-      <td><code>${k}</code></td>
+      <td><code>${k}</code>${k === 'other' ? ' <span class="muted">(默认)</span>' : ''}</td>
       <td><input value="${v}" style="width:160px" onchange="cats[k]=this.value"></td>
-      <td><button class="danger" ${used[k] ? 'disabled title="有 ' + used[k] + ' 个条目在用，先改走它们"' : ''} onclick="delete cats[k];renderCats()">删除</button>
-          <span class="muted">${used[k] ?? ''}</span></td>
+      <td>
+        ${k === 'other'
+          ? '<span class="muted">默认分类，不可删</span>'
+          : `<button class="danger" onclick="delCat('${k}')">删除</button> <span class="muted">${used[k] ?? 0} 个条目</span>`}
+      </td>
     </tr>`).join('')
+}
+function delCat(k) {
+  if (k === 'other') return
+  delete cats[k]
+  // 该分类下的条目本地先归入默认，服务端保存时会再兜底一遍
+  storeEntries.forEach(e => { if (e.category === k || !(e.category in cats)) e.category = 'other' })
+  renderCats(); renderStore()
 }
 function addCat() {
   const k = $('#newCatKey').value.trim(), v = $('#newCatLabel').value.trim()
@@ -374,7 +385,7 @@ function addCat() {
   cats[k] = v; renderCats()
 }
 async function saveCats() {
-  try { await api('/api/categories/save', { cats }); toast('✓ 分类已保存推送'); renderStore() }
+  try { await api('/api/categories/save', { cats }); toast('✓ 分类已保存推送（条目已归入其他，官网部署中）'); renderStore() }
   catch (e) { toast(e.message, true) }
 }
 function delEntry(i) {
@@ -500,6 +511,24 @@ async function syncAll(btn) {
   } catch (e) { toast('✗ ' + e.message, true) }
   finally { btn.disabled = false; btn.textContent = old }
 }
+
+// ---- 部署状态实时显示 ----
+let busySince = null
+async function tickSyncStatus() {
+  const el = $('#syncStatus'); if (!el) return
+  try {
+    const s = await api('/api/deploy-status')
+    if (s.busy) {
+      if (!busySince) busySince = Date.now()
+      el.innerHTML = `<span style="color:#d29922">⏳ 官网部署中 ${Math.round((Date.now() - busySince) / 1000)}s…</span>`
+    } else {
+      if (busySince) { el.innerHTML = `<span style="color:#3fb950">✓ 官网已更新 ${new Date().toLocaleTimeString('zh-CN', { hour12: false })}</span>`; setTimeout(() => { el.innerHTML = '' }, 8000); busySince = null }
+      else if (s.ok === false) { el.innerHTML = '<span style="color:#f85149">✗ 上次部署失败（设置页看日志）</span>' }
+    }
+  } catch {}
+}
+setInterval(tickSyncStatus, 1500)
+tickSyncStatus()
 
 // ---- 启动：默认审核队列自动拉取 ----
 loadCfg()
