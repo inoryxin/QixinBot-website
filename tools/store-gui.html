@@ -59,6 +59,7 @@
     <button data-tab="cats">分类管理</button>
     <button data-tab="compare">对比同步</button>
     <button data-tab="upload">上传发布</button>
+    <button class="act" id="syncAllBtn" onclick="syncAll(this)">🔄 同步</button>
     <button data-tab="settings">设置</button>
   </nav>
 </header>
@@ -164,6 +165,8 @@
         <tr><td>Gitea 属主 / 仓库</td><td><input id="c_giteaOwner" style="width:120px"> <input id="c_pluginsRepo" style="width:200px"> <input id="c_githubOwner" style="width:120px" placeholder="github 属主"></td></tr>
         <tr><td>部署私钥路径</td><td><input id="c_deployKeyPath" style="width:100%" placeholder="留空则自动从 nas.yaml 提取 1Panel 虚拟机密钥"></td></tr>
         <tr><td>nas.yaml 路径</td><td><input id="c_nasYamlPath" style="width:100%"></td></tr>
+        <tr><td>官网仓库路径</td><td><input id="c_repoPath" style="width:100%" placeholder="exe 模式必填（registry / 分类 / 部署都在这个仓库）"></td></tr>
+        <tr><td>自动部署</td><td><label style="font-size:13px"><input type="checkbox" id="c_autoDeploy"> 保存 / 上架 / 审核通过后自动部署官网，不用再手动点</label></td></tr>
       </table>
       <div class="row" style="margin-top:14px">
         <button class="primary" onclick="saveCfg()">💾 保存设置</button>
@@ -348,7 +351,9 @@ function addEntry() {
 async function saveStore() {
   try {
     await api('/api/registry/save', { entries: storeEntries, msg: `商店后台更新 registry（${storeEntries.length} 条）` })
-    toast('✓ 已保存并推送；部署官网后生效')
+    const ad = $('#c_autoDeploy')
+    toast(ad?.checked ? '✓ 已保存推送，自动部署官网中…' : '✓ 已保存推送（记得部署官网）')
+    loadStore()
   } catch (e) { toast(e.message, true) }
 }
 
@@ -402,22 +407,57 @@ async function doUpload(yes) {
 // ---- 设置 ----
 async function loadCfg() {
   const c = await api('/api/config')
-  for (const k of ['giteaUrl', 'giteaToken', 'githubToken', 'proxy', 'giteaOwner', 'githubOwner', 'pluginsRepo', 'deployKeyPath', 'nasYamlPath']) {
+  for (const k of ['giteaUrl', 'giteaToken', 'githubToken', 'proxy', 'giteaOwner', 'githubOwner', 'pluginsRepo', 'deployKeyPath', 'nasYamlPath', 'repoPath']) {
     const el = $('#c_' + k); if (el) el.value = c[k] ?? ''
   }
+  const ad = $('#c_autoDeploy'); if (ad) ad.checked = !!c.autoDeploy
   $('#cfghint').innerHTML =
     `Gitea <span class="dot ${c.hasGiteaToken ? 'ok' : 'bad'}"></span> GitHub <span class="dot ${c.hasGithubToken ? 'ok' : 'warn'}"></span>`
     + ` <span class="muted">${c.hasGithubToken ? '已配置' : '未配置（匿名只读，审核/同步需配置）'}</span>`
 }
 async function saveCfg() {
   const b = {}
-  for (const k of ['giteaUrl', 'giteaToken', 'githubToken', 'proxy', 'giteaOwner', 'githubOwner', 'pluginsRepo', 'deployKeyPath', 'nasYamlPath']) b[k] = $('#c_' + k).value.trim()
+  for (const k of ['giteaUrl', 'giteaToken', 'githubToken', 'proxy', 'giteaOwner', 'githubOwner', 'pluginsRepo', 'deployKeyPath', 'nasYamlPath', 'repoPath']) b[k] = $('#c_' + k).value.trim()
+  const ad = $('#c_autoDeploy'); if (ad) b.autoDeploy = ad.checked
   await api('/api/config', b); toast('✓ 设置已保存'); loadCfg()
 }
+async function pollDeploy(log) {
+  for (;;) {
+    const s = await api('/api/deploy-status')
+    const head = s.busy ? '⏳ 部署中…' : s.ok === false ? '✗ 部署失败' : '✓ 部署完成'
+    log.textContent = head + '\n' + (s.log || []).join('\n')
+    log.scrollTop = log.scrollHeight
+    if (!s.busy) {
+      if (s.ok === false) throw new Error(s.error || '部署失败')
+      return s
+    }
+    await new Promise(r => setTimeout(r, 2000))
+  }
+}
 async function deploySite() {
-  const log = $('#deployLog'); log.style.display = 'block'; log.textContent = '构建与部署中（约 1 分钟）…'
-  try { const r = await api('/api/deploy'); log.textContent = r.log.join('\n') + '\n✓ 部署完成 http://10.0.0.123:8090' }
-  catch (e) { log.textContent = '✗ ' + e.message }
+  const log = $('#deployLog'); log.style.display = 'block'
+  log.textContent = '启动部署…'
+  try {
+    const r = await api('/api/deploy')
+    if (r.started === false) { log.textContent = r.reason; return }
+    await pollDeploy(log)
+    toast('✓ 部署完成 http://10.0.0.123:8090')
+  } catch (e) { log.textContent += '\n✗ ' + e.message; toast(e.message, true) }
+}
+async function syncAll(btn) {
+  const old = btn.textContent; btn.disabled = true; btn.textContent = '⏳ 同步中…'
+  try {
+    await api('/api/sync-all', {})
+    let s
+    do {
+      await new Promise(r => setTimeout(r, 2000))
+      s = await api('/api/deploy-status')
+    } while (s.busy)
+    if (s.ok === false) throw new Error(s.error || '部署失败')
+    toast('✓ 同步完成：GitHub 镜像 + 官网已刷新')
+    document.querySelector('#tabs button.active')?.click()
+  } catch (e) { toast('✗ ' + e.message, true) }
+  finally { btn.disabled = false; btn.textContent = old }
 }
 
 // ---- 启动：默认审核队列自动拉取 ----

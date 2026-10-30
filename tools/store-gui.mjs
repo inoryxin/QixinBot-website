@@ -15,7 +15,8 @@ import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdtemp
 import { join, dirname, resolve, basename } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { execSync } from 'node:child_process'
+import { execSync, exec as cpExec } from 'node:child_process'
+import { promisify } from 'node:util'
 import { listZipEntries, parseManifest } from './lib-anzu.mjs'
 
 // ---------- 运行环境：源码模式 / SEA 单文件 exe 模式 ----------
@@ -34,6 +35,7 @@ const CFG_DEFAULT = {
   githubOwner: 'inoryxin',
   pluginsRepo: 'QixinBot-go-plugins',
   deployKeyPath: '',
+  autoDeploy: true,
   nasYamlPath: 'C:/Users/anzu/Documents/xin/nas.yaml',
   // exe 模式下必填：官网（website 仓库）本地路径，registry/分类/部署都在里面
   repoPath: 'C:/Users/anzu/Documents/xin/zcode/QixinBot-website',
@@ -98,6 +100,7 @@ function gitRegistryCommit(msg) {
     `git add docs/plugins && (git diff --cached --quiet || git commit -m ${JSON.stringify(msg)}) && git push`,
     { cwd: ROOT, stdio: 'pipe' },
   )
+  scheduleDeploy()
 }
 
 // ---------- 包解析 / 扫描 ----------
@@ -262,7 +265,10 @@ async function uploadPublish({ target, anzu, yes }) {
 }
 
 // ---------- 部署 ----------
-function deploySite() {
+const deployState = { busy: false, log: [], ok: null, error: null, finishedAt: null }
+const execP = promisify(cpExec)
+async function runDeploy() {
+  if (deployState.busy) return { started: false, reason: '已有部署在进行中' }
   let keyPath = CFG.deployKeyPath
   if (!keyPath && CFG.nasYamlPath && existsSync(CFG.nasYamlPath)) {
     const yaml = readFileSync(CFG.nasYamlPath, 'utf8')
@@ -270,17 +276,36 @@ function deploySite() {
     if (m) {
       keyPath = join(tmpdir(), 'op_key')
       writeFileSync(keyPath, m[1].split('\n').map((l) => l.slice(8)).join('\n'))
-      execSync(`icacls "${keyPath}" /inheritance:r /grant:r "%username%":F`, { shell: 'cmd.exe', stdio: 'pipe' })
     }
   }
   if (!keyPath || !existsSync(keyPath)) throw new Error('没有部署私钥（设置里填 deployKeyPath 或确认 nas.yaml 可读）')
-  const log = []
-  const run = (cmd) => { log.push('$ ' + cmd); log.push(execSync(cmd, { cwd: ROOT, stdio: 'pipe', shell: 'bash.exe' }).toString()) }
-  run('npx vitepress build docs 2>&1 | tail -2')
-  run('tar -C docs/.vitepress/dist -czf /tmp/site.tar.gz .')
-  run(`scp -i "${keyPath}" -o StrictHostKeyChecking=accept-new /tmp/site.tar.gz root@10.0.0.123:/tmp/site.tar.gz`)
-  run(`ssh -i "${keyPath}" -o StrictHostKeyChecking=accept-new root@10.0.0.123 "rm -rf /opt/qixinbot-site/* && tar -C /opt/qixinbot-site -xzf /tmp/site.tar.gz && rm /tmp/site.tar.gz"`)
-  return log
+  deployState.busy = true; deployState.log = []; deployState.ok = null; deployState.error = null
+  const run = async (cmd) => {
+    deployState.log.push('$ ' + cmd)
+    try { const { stdout } = await execP(cmd, { cwd: ROOT, shell: 'bash.exe', maxBuffer: 16 * 1024 * 1024 }); deployState.log.push(stdout) }
+    catch (e) { deployState.log.push(String(e.stderr || e.message).slice(0, 800)); throw e }
+  }
+  ;(async () => {
+    try {
+      await run('npx vitepress build docs 2>&1 | tail -2')
+      await run('tar -C docs/.vitepress/dist -czf /tmp/site.tar.gz .')
+      await run(`scp -i "${keyPath}" -o StrictHostKeyChecking=accept-new /tmp/site.tar.gz root@10.0.0.123:/tmp/site.tar.gz`)
+      await run(`ssh -i "${keyPath}" -o StrictHostKeyChecking=accept-new root@10.0.0.123 "rm -rf /opt/qixinbot-site/* && tar -C /opt/qixinbot-site -xzf /tmp/site.tar.gz && rm /tmp/site.tar.gz"`)
+      deployState.ok = true
+      deployState.log.push('✓ 部署完成 http://10.0.0.123:8090')
+    } catch (e) {
+      deployState.ok = false
+      deployState.error = String(e.message || e)
+    } finally {
+      deployState.busy = false
+      deployState.finishedAt = new Date().toISOString()
+    }
+  })()
+  return { started: true }
+}
+function scheduleDeploy() {
+  if (!CFG.autoDeploy) return
+  runDeploy().catch((e) => console.error('自动部署失败:', e.message))
 }
 
 // ---------- HTTP ----------
@@ -308,6 +333,7 @@ const server = http.createServer(async (req, res) => {
       for (const k of ['giteaUrl', 'giteaToken', 'githubToken', 'proxy', 'giteaOwner', 'githubOwner', 'pluginsRepo', 'deployKeyPath', 'nasYamlPath']) {
         if (typeof b[k] === 'string' && b[k] && !b[k].startsWith('••••')) CFG[k] = b[k]
       }
+      if (typeof b.autoDeploy === 'boolean') CFG.autoDeploy = b.autoDeploy
       saveCfg()
       return json(res, 200, { ok: true })
     }
@@ -462,7 +488,20 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, await uploadPublish(await readBody(req)))
     }
     if (url.pathname === '/api/deploy' && req.method === 'POST') {
-      return json(res, 200, { log: deploySite() })
+      return json(res, 200, await runDeploy())
+    }
+    if (url.pathname === '/api/deploy-status' && req.method === 'GET') {
+      return json(res, 200, { ...deployState, log: deployState.log })
+    }
+    if (url.pathname === '/api/sync-all' && req.method === 'POST') {
+      // 一键同步：触发两仓库的 Gitea→GitHub 镜像立即同步 + 官网重新部署
+      const mirrors = []
+      for (const r of [CFG.pluginsRepo, 'QixinBot-website']) {
+        const res2 = await gitea(`/repos/${CFG.giteaOwner}/${r}/push_mirrors-sync`, { method: 'POST' })
+        mirrors.push({ repo: r, ok: res2.status < 300 })
+      }
+      const d = await runDeploy()
+      return json(res, 200, { mirrors, deploy: d })
     }
     json(res, 404, { err: 'no route' })
   } catch (e) {
