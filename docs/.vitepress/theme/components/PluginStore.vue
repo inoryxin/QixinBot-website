@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { resolveRepoLink, LINKS } from '../../links'
 import registry from '../../../plugins/registry.json'
 
@@ -69,6 +69,21 @@ function permLabel(p: string): string {
   return PERM_LABELS[p] ?? p
 }
 
+// 分页：每页 20 个，搜索/切分类时回到第一页
+const PAGE_SIZE = 20
+const page = ref(1)
+const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / PAGE_SIZE)))
+const paged = computed(() =>
+  filtered.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE),
+)
+watch([query, activeCategory], () => {
+  page.value = 1
+})
+function goto(p: number) {
+  page.value = Math.min(Math.max(1, p), totalPages.value)
+  document.querySelector('.store-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 // 四色体系：Node.js 绿 / Python 蓝，依赖按所属生态再分青色（Node 侧）与紫色（Python 侧）
 function isPythonSide(s: string): boolean {
   return /python|pillow|pip|numpy|torch/i.test(s)
@@ -125,7 +140,7 @@ function depClass(dep: string): string {
     <p v-if="filtered.length === 0" class="store-empty">没有匹配的插件，换个关键字试试。</p>
 
     <div class="store-grid">
-      <article v-for="e in filtered" :key="e.id" class="plugin-card">
+      <article v-for="e in paged" :key="e.id" class="plugin-card">
         <header class="card-head">
           <h3 class="card-name">{{ e.name }}</h3>
           <span class="badge" :class="e.tier === 'official' ? 'badge-official' : 'badge-third'">
@@ -163,6 +178,22 @@ function depClass(dep: string): string {
         </footer>
       </article>
     </div>
+
+    <nav v-if="totalPages > 1" class="store-pager" aria-label="分页">
+      <button class="pager-btn" :disabled="page === 1" @click="goto(page - 1)">‹ 上一页</button>
+      <button
+        v-for="p in totalPages"
+        :key="p"
+        class="pager-num"
+        :class="{ active: p === page }"
+        :aria-current="p === page ? 'page' : undefined"
+        @click="goto(p)"
+      >
+        {{ p }}
+      </button>
+      <button class="pager-btn" :disabled="page === totalPages" @click="goto(page + 1)">下一页 ›</button>
+      <span class="pager-info">第 {{ page }} / {{ totalPages }} 页 · 每页 {{ PAGE_SIZE }} 个</span>
+    </nav>
   </div>
 </template>
 
@@ -442,6 +473,47 @@ function depClass(dep: string): string {
 }
 .card-links a:hover {
   text-decoration: underline;
+}
+
+/* ---------- 分页 ---------- */
+.store-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 26px;
+}
+.pager-btn,
+.pager-num {
+  border: 1px solid var(--vp-c-divider);
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-2);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.pager-btn:hover:not(:disabled),
+.pager-num:hover {
+  border-color: var(--vp-c-brand-1);
+  color: var(--vp-c-text-1);
+}
+.pager-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.pager-num.active {
+  background: var(--vp-c-brand-soft);
+  border-color: var(--vp-c-brand-1);
+  color: var(--vp-c-brand-1);
+  font-weight: 700;
+}
+.pager-info {
+  font-size: 12px;
+  color: var(--vp-c-text-3);
+  margin-left: 6px;
 }
 
 @media (max-width: 768px) {

@@ -92,6 +92,29 @@ JSON 里增删改条目**，没有单独的图形后台。改完提交推送、�
 徽章配色是自动的：Node.js 绿 / Python 蓝，依赖按所属生态分青色（Node 侧）与
 紫色（Python 侧），无需配置。
 
+## 插件上传程序
+
+不想用 git 提交 `.anzu` 包时，用上传程序直接推到 Gitea 插件仓库：
+
+```bash
+node tools/upload-plugin.mjs path/to/my-plugin.anzu          # 先 dry-run 预览
+node tools/upload-plugin.mjs path/to/my-plugin.anzu --yes    # 真正提交
+```
+
+- 自动解析包内 manifest.toml（id/中文名/版本），提交到 `packages/<id>.anzu`；
+  已存在则带 sha 覆盖更新
+- token 依次找：`--token` → 环境变量 `GITEA_TOKEN` → `~/.gitea_nas_token.txt`
+  （支持裸 token 和 git 凭据 URL 两种格式）
+- 提交后 mirror 自动同步到 GitHub，raw 直链即可下载
+- **商店展示是另一回事**：还要往 `docs/plugins/registry.json` 加/改条目（见上节）
+
+## 插件仓库与 Wiki 分工
+
+- [QixinBot-go-plugins](repo://QixinBot-go-plugins)：只放**源码**（`src/`，每个插件
+  README 在各自目录）和**签名包**（`packages/`）；PC 管家、协议端等平台文档在
+  [Wiki](repo://QixinBot-go-plugins/wiki)
+- 两个 GitHub 仓库的 Wiki 与 Gitea 侧同步（GitHub wiki 需在网页上初始化一次后 git 推送）
+
 ## 部署
 
 手动部署（本机构建 → 推到 1Panel 虚拟机）：
