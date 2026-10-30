@@ -55,9 +55,9 @@ export function resolveRepoLink(link: string): string {
   let url = `${p.web}/${p.owner}/${repo}`
   if (path) {
     if (path.startsWith('raw/')) {
-      // raw/{branch}/... → 平台各自的 raw 格式
+      // raw/{branch}/... → 平台各自的 raw 格式（rawPrefix 已含 owner/repo 段）
       const branchAndFile = path.slice('raw/'.length)
-      url += `/${p.rawPrefix(p.owner, repo)}${branchAndFile}`
+      url = `${p.web}/${p.rawPrefix(p.owner, repo)}${branchAndFile}`
     } else {
       url += `/${path}`
     }
