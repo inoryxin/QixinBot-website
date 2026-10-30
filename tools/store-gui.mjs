@@ -302,8 +302,10 @@ async function runDeploy() {
       await run('npx vitepress build docs 2>&1 | tail -2')
       await run('tar -C docs/.vitepress/dist -czf /tmp/site.tar.gz .')
       if (!existsSync(keyPath)) keyPath = ensureDeployKey(deployState.log)
-      await run(`scp -i "${keyPath}" -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new /tmp/site.tar.gz root@10.0.0.123:/tmp/site.tar.gz`)
-      await run(`ssh -i "${keyPath}" -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new root@10.0.0.123 "rm -rf /opt/qixinbot-site/* && tar -C /opt/qixinbot-site -xzf /tmp/site.tar.gz && rm /tmp/site.tar.gz"`)
+      // 强制用 Git Bash 的 ssh/scp：Windows 自带 OpenSSH 对 /tmp 路径和密钥的处理与手动部署不一致，曾导致挂死/找不到文件
+      const msysKey = keyPath.replace(/^([A-Za-z]):/, (_, d) => '/' + d.toLowerCase()).replace(/\\/g, '/')
+      await run(`/usr/bin/scp -i "${msysKey}" -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new /tmp/site.tar.gz root@10.0.0.123:/tmp/site.tar.gz`)
+      await run(`/usr/bin/ssh -i "${msysKey}" -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new root@10.0.0.123 "rm -rf /opt/qixinbot-site/* && tar -C /opt/qixinbot-site -xzf /tmp/site.tar.gz && rm /tmp/site.tar.gz"`)
       deployState.ok = true
       deployState.log.push('✓ 部署完成 http://10.0.0.123:8090')
     } catch (e) {
