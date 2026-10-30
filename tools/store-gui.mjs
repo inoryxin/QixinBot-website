@@ -267,22 +267,28 @@ async function uploadPublish({ target, anzu, yes }) {
 // ---------- 部署 ----------
 const deployState = { busy: false, log: [], ok: null, error: null, finishedAt: null }
 const execP = promisify(cpExec)
-async function runDeploy() {
-  if (deployState.busy) return { started: false, reason: '已有部署在进行中' }
+// 部署密钥：优先用设置里填的路径；否则放到仓库 tools/.deploy_key（稳定位置，不受 Temp 清理影响），
+// 不存在就从 nas.yaml 现场提取 + 收紧 ACL。scp 前会再确保一次，丢了你也不知道。
+function ensureDeployKey(log) {
   let keyPath = CFG.deployKeyPath
-  if (!keyPath && CFG.nasYamlPath && existsSync(CFG.nasYamlPath)) {
-    const yaml = readFileSync(CFG.nasYamlPath, 'utf8')
-    const m = yaml.match(/private_key: \|\n((?: {8}.+\n?)+)/)
-    if (m) {
-      keyPath = join(tmpdir(), 'op_key')
-      writeFileSync(keyPath, m[1].split('\n').map((l) => l.slice(8)).join('\n'))
-    }
+  if (keyPath && existsSync(keyPath)) return keyPath
+  keyPath = join(ROOT, 'tools', '.deploy_key')
+  if (!existsSync(keyPath)) {
+    if (!CFG.nasYamlPath || !existsSync(CFG.nasYamlPath)) throw new Error('nas.yaml 不存在，无法提取部署私钥（设置里填 nasYamlPath 或 deployKeyPath）')
+    const m = readFileSync(CFG.nasYamlPath, 'utf8').match(/private_key: \|\n((?: {8}.+\n?)+)/)
+    if (!m) throw new Error('nas.yaml 里找不到 private_key 块')
+    writeFileSync(keyPath, m[1].split('\n').map((l) => l.slice(8)).join('\n'))
+    log?.push('• 已从 nas.yaml 提取部署私钥 → ' + keyPath)
   }
-  if (!keyPath || !existsSync(keyPath)) throw new Error('没有部署私钥（设置里填 deployKeyPath 或确认 nas.yaml 可读）')
-  // 收紧私钥 ACL：Windows 自带 OpenSSH 会因权限过宽拒绝使用该密钥，转而隐形等待密码输入导致挂死
+  // 收紧 ACL：Windows 自带 OpenSSH 会因权限过宽拒绝该密钥，转而隐形等密码导致挂死
   try {
     execSync(`icacls "${keyPath}" /inheritance:r /grant:r "${process.env.USERNAME}":F`, { shell: 'cmd.exe', stdio: 'pipe' })
   } catch {}
+  return keyPath
+}
+async function runDeploy() {
+  if (deployState.busy) return { started: false, reason: '已有部署在进行中' }
+  let keyPath
   deployState.busy = true; deployState.log = []; deployState.ok = null; deployState.error = null
   const run = async (cmd) => {
     deployState.log.push('$ ' + cmd)
@@ -291,8 +297,11 @@ async function runDeploy() {
   }
   ;(async () => {
     try {
+      keyPath = ensureDeployKey(deployState.log)
+      deployState.log.push('• 部署密钥：' + keyPath)
       await run('npx vitepress build docs 2>&1 | tail -2')
       await run('tar -C docs/.vitepress/dist -czf /tmp/site.tar.gz .')
+      if (!existsSync(keyPath)) keyPath = ensureDeployKey(deployState.log)
       await run(`scp -i "${keyPath}" -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new /tmp/site.tar.gz root@10.0.0.123:/tmp/site.tar.gz`)
       await run(`ssh -i "${keyPath}" -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new root@10.0.0.123 "rm -rf /opt/qixinbot-site/* && tar -C /opt/qixinbot-site -xzf /tmp/site.tar.gz && rm /tmp/site.tar.gz"`)
       deployState.ok = true
