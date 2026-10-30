@@ -304,6 +304,7 @@ async function loadStore() {
 }
 let cats = {}
 async function loadCats() { cats = await api('/api/categories') }
+let storeDirty = false, catsDirty = false
 let stPage = 1
 const ST_PAGE_SIZE = 20
 function storeView() {
