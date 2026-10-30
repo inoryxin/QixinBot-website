@@ -1,7 +1,7 @@
 # 下载
 
 当前版本 **v1.0.0**（2026-10-30，首个开源版本）。所有包也可以到
-[Gitea Releases](http://10.0.0.140:30008/inoryxin/QixinBot-go/releases) 页面手动下载。
+[Releases 页面](repo://QixinBot-go/releases)手动下载。
 
 ## 框架包（必装）
 
@@ -10,8 +10,8 @@
 
 | 包 | 说明 |
 |---|---|
-| [QixinBot-win-v1.0.0.zip](http://10.0.0.140:30008/inoryxin/QixinBot-go/releases/download/v1.0.0/1-QixinBot-win-v1.0.0.zip) | Windows 框架包：qixinbot.exe + SDK + 配置模板 + 启动脚本 |
-| [QixinBot-linux-v1.0.0.zip](http://10.0.0.140:30008/inoryxin/QixinBot-go/releases/download/v1.0.0/2-QixinBot-linux-v1.0.0.zip) | Linux 框架包：同上 |
+| [QixinBot-win-v1.0.0.zip](repo://QixinBot-go/releases/download/v1.0.0/1-QixinBot-win-v1.0.0.zip) | Windows 框架包：qixinbot.exe + SDK + 配置模板 + 启动脚本 |
+| [QixinBot-linux-v1.0.0.zip](repo://QixinBot-go/releases/download/v1.0.0/2-QixinBot-linux-v1.0.0.zip) | Linux 框架包：同上 |
 
 ## 运行时包（插件用到 Node/Python 时必装）
 
@@ -19,10 +19,10 @@
 
 | 包 | 说明 |
 |---|---|
-| [runtime-node-windows-x64.anzu](http://10.0.0.140:30008/inoryxin/QixinBot-go/releases/download/v1.0.0/3-runtime-node-windows-x64.anzu) | Node.js 运行时（Windows） |
-| [runtime-node-linux-x64.anzu](http://10.0.0.140:30008/inoryxin/QixinBot-go/releases/download/v1.0.0/4-runtime-node-linux-x64.anzu) | Node.js 运行时（Linux） |
-| [runtime-python-windows-x64.anzu](http://10.0.0.140:30008/inoryxin/QixinBot-go/releases/download/v1.0.0/5-runtime-python-windows-x64.anzu) | Python 运行时（Windows） |
-| [runtime-python-linux-x64.anzu](http://10.0.0.140:30008/inoryxin/QixinBot-go/releases/download/v1.0.0/6-runtime-python-linux-x64.anzu) | Python 运行时（Linux） |
+| [runtime-node-windows-x64.anzu](repo://QixinBot-go/releases/download/v1.0.0/3-runtime-node-windows-x64.anzu) | Node.js 运行时（Windows） |
+| [runtime-node-linux-x64.anzu](repo://QixinBot-go/releases/download/v1.0.0/4-runtime-node-linux-x64.anzu) | Node.js 运行时（Linux） |
+| [runtime-python-windows-x64.anzu](repo://QixinBot-go/releases/download/v1.0.0/5-runtime-python-windows-x64.anzu) | Python 运行时（Windows） |
+| [runtime-python-linux-x64.anzu](repo://QixinBot-go/releases/download/v1.0.0/6-runtime-python-linux-x64.anzu) | Python 运行时（Linux） |
 
 ## 开发工具包（只写插件才需要）
 
@@ -30,8 +30,8 @@
 
 | 包 | 说明 |
 |---|---|
-| [QixinBot-devtools-win-v1.0.0.zip](http://10.0.0.140:30008/inoryxin/QixinBot-go/releases/download/v1.0.0/7-QixinBot-devtools-win-v1.0.0.zip) | Windows 开发工具 |
-| [QixinBot-devtools-linux-v1.0.0.zip](http://10.0.0.140:30008/inoryxin/QixinBot-go/releases/download/v1.0.0/8-QixinBot-devtools-linux-v1.0.0.zip) | Linux 开发工具 |
+| [QixinBot-devtools-win-v1.0.0.zip](repo://QixinBot-go/releases/download/v1.0.0/7-QixinBot-devtools-win-v1.0.0.zip) | Windows 开发工具 |
+| [QixinBot-devtools-linux-v1.0.0.zip](repo://QixinBot-go/releases/download/v1.0.0/8-QixinBot-devtools-linux-v1.0.0.zip) | Linux 开发工具 |
 
 ## 协议端推荐
 

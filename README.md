@@ -2,8 +2,15 @@
 
 QixinBot 的官网与文档站，基于 [VitePress](https://vitepress.dev/zh/) 构建。
 
-- 线上地址：http://10.0.0.123:8090（1Panel 虚拟机，nginx 容器）
-- 仓库：http://10.0.0.140:30008/inoryxin/QixinBot-website
+- 线上地址：http://10.0.0.123:8090（1Panel 虚拟机，OpenResty 容器）
+- 源码仓库：http://10.0.0.140:30008/inoryxin/QixinBot-website
+- 公开主页：https://github.com/inoryxin（框架与插件仓库自 Gitea push mirror 持续同步）
+
+## 链接平台切换（Gitea ↔ GitHub）
+
+全站外链统一写成 `repo://` 协议（如 `repo://QixinBot-go/releases`），由
+`docs/.vitepress/links.ts` 在构建期解析。**换平台只改 `links.ts` 里的
+`PLATFORM` 一行**；Vue 组件一律 import `resolveRepoLink`，不要在代码里写死仓库 URL。
 
 ## 本地开发
 

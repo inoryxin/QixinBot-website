@@ -47,8 +47,7 @@ features:
 不用装 Go，不用装 Node/Python——框架和插件解释器都由发布包自带。
 
 ```bash
-# 1. 到 Releases 下载对应平台的框架包，解压到任意目录
-#    http://10.0.0.140:30008/inoryxin/QixinBot-go/releases
+# 1. 到 Releases 下载对应平台的框架包（见上方「下载」按钮），解压到任意目录
 
 # 2. 改 config.toml：填 OneBot 协议端地址和控制台密码
 #    ws_url = "ws://127.0.0.1:3001"
