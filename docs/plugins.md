@@ -1,5 +1,5 @@
 ---
-outline: false
+aside: false
 pageClass: plugin-store-page
 ---
 
