@@ -1,0 +1,22 @@
+/* 品牌色：取自 logo 的浅绿底，压深以保证对比度 */
+:root {
+  --vp-c-brand-1: #4e8f2f;
+  --vp-c-brand-2: #5c9e3a;
+  --vp-c-brand-3: #6aa84f;
+  --vp-c-brand-soft: rgba(106, 168, 79, 0.16);
+}
+
+.dark {
+  --vp-c-brand-1: #93d06a;
+  --vp-c-brand-2: #82c257;
+  --vp-c-brand-3: #6aa84f;
+  --vp-c-brand-soft: rgba(147, 208, 106, 0.16);
+}
+
+/* 首页 hero：默认 56px 时 11 个中文标题字超出文本列宽被迫断行，压回 48px 保一行 */
+@media (min-width: 960px) {
+  .VPHero .name,
+  .VPHero .text {
+    font-size: 48px;
+  }
+}

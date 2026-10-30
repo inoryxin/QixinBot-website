@@ -1,0 +1,31 @@
+name: build & deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: upload to 1Panel host
+        run: |
+          tar -C docs/.vitepress/dist -czf /tmp/site.tar.gz .
+          eval $(ssh-agent)
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" | ssh-add -
+          ssh -o StrictHostKeyChecking=accept-new root@"$DEPLOY_HOST" "mkdir -p $DEPLOY_PATH"
+          scp -o StrictHostKeyChecking=accept-new /tmp/site.tar.gz "root@$DEPLOY_HOST:/tmp/site.tar.gz"
+          ssh root@"$DEPLOY_HOST" "rm -rf $DEPLOY_PATH/* && tar -C $DEPLOY_PATH -xzf /tmp/site.tar.gz && rm /tmp/site.tar.gz"
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
