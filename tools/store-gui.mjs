@@ -457,15 +457,21 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/issues' && req.method === 'GET') {
       const platform = url.searchParams.get('platform') ?? 'github'
       let issues
+      // 拉全部开放工单后在代码里按标签过滤：中文 label 放 URL 参数会被 GitHub 拒
+      const hasLabel = (i) => (i.labels ?? []).some((l) => (l.name ?? l) === '插件收录')
       if (platform === 'gitea') {
-        const r = await gitea(`/repos/${CFG.giteaOwner}/${CFG.pluginsRepo}/issues?state=open&labels=插件收录&limit=50`)
+        const r = await gitea(`/repos/${CFG.giteaOwner}/${CFG.pluginsRepo}/issues?state=open&limit=50`)
         if (r.status !== 200 || !Array.isArray(r.json)) {
           return json(res, 200, { issues: [], note: `Gitea 返回 ${r.status}：token 需要 read:issue / write:issue 权限（设置里换新 token），或改用 GitHub 提交` })
         }
-        issues = (r.json).map((i) => ({ num: i.number, title: i.title, author: i.user?.login, created: i.created_at }))
+        issues = (r.json)
+          .filter((i) => hasLabel(i) && i.pull_request === undefined)
+          .map((i) => ({ num: i.number, title: i.title, author: i.user?.login, created: i.created_at }))
       } else {
-        const r = gh(`/repos/${CFG.githubOwner}/${CFG.pluginsRepo}/issues?state=open&labels=插件收录&per_page=50`)
-        issues = (r.json ?? []).map((i) => ({ num: i.number, title: i.title, author: i.user?.login, created: i.created_at }))
+        const r = gh(`/repos/${CFG.githubOwner}/${CFG.pluginsRepo}/issues?state=open&per_page=50`)
+        issues = (r.json ?? [])
+          .filter((i) => hasLabel(i) && i.pull_request === undefined)
+          .map((i) => ({ num: i.number, title: i.title, author: i.user?.login, created: i.created_at }))
       }
       return json(res, 200, { issues })
     }
