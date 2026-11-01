@@ -333,6 +333,11 @@ async function runDeploy() {
       const msysKey = keyPath.replace(/^([A-Za-z]):/, (_, d) => '/' + d.toLowerCase()).replace(/\\/g, '/')
       await run(`/usr/bin/scp -i "${msysKey}" -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new /tmp/site.tar.gz root@10.0.0.123:/tmp/site.tar.gz`)
       await run(`/usr/bin/ssh -i "${msysKey}" -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new root@10.0.0.123 "rm -rf /opt/qixinbot-site/* && tar -C /opt/qixinbot-site -xzf /tmp/site.tar.gz && rm /tmp/site.tar.gz"`)
+      // 公网站点（Netlify）：token 配置了才部署
+      if (CFG.netlifyToken && CFG.netlifySiteId) {
+        await run(`node tools/netlify-deploy.mjs`)
+        deployState.log.push('✓ Netlify 公网站点已更新 https://qixinbot-store.netlify.app')
+      }
       deployState.ok = true
       deployState.log.push('✓ 部署完成 http://10.0.0.123:8090')
     } catch (e) {
