@@ -129,6 +129,8 @@ if (problems.length) { console.error('✗ 有未解决问题：' + problems.join
 
 // git 提交推送（Actions 的 checkout 已持久化凭据）
 const git = (cmd) => execSync(cmd, { stdio: 'pipe' })
+git(`git config user.name "QixinBot 商店管理台"`)
+git(`git config user.email "store@qixinbot.local"`)
 git(`git add docs/plugins/registry.json`)
 git(`git commit -m "商店上架第三方插件 ${entry.name}(${entry.id})，审核 issue ${repo}#${num}"`)
 git(`git push`)
