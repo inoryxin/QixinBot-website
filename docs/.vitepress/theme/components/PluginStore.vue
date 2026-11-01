@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { resolveRepoLink, LINKS } from '../../links'
-import registry from '../../../plugins/registry.json'
 import CATEGORIES from '../../../plugins/categories.json'
 
 interface PluginEntry {
@@ -23,9 +22,31 @@ interface PluginEntry {
   tags: string[]
 }
 
-const entries = registry as PluginEntry[]
+const entries = ref<PluginEntry[]>([])
+const loadState = ref<'loading' | 'ok' | 'error'>('loading')
 
-// 分类来自 docs/plugins/categories.json（管理台可增删）
+// 运行时拉取 registry：变更后无需重建官网，清 CDN 缓存刷新页面即生效
+const REGISTRY_SOURCES = [
+  '/registry.json',
+  'https://cdn.jsdelivr.net/gh/inoryxin/QixinBot-go-plugins@main/registry.json',
+  'https://raw.githubusercontent.com/inoryxin/QixinBot-go-plugins/main/registry.json',
+]
+async function loadRegistry() {
+  loadState.value = 'loading'
+  for (const src of REGISTRY_SOURCES) {
+    try {
+      const r = await fetch(src, { cache: 'no-store' })
+      if (!r.ok) continue
+      const j = await r.json()
+      if (!Array.isArray(j) || j.length === 0) continue
+      entries.value = j as PluginEntry[]
+      loadState.value = 'ok'
+      return
+    } catch {}
+  }
+  loadState.value = 'error'
+}
+onMounted(loadRegistry)
 
 const PERM_LABELS: Record<string, string> = {
   'onebot.write': '收发消息',
@@ -139,7 +160,9 @@ function tagClass(t: string): string {
   <div class="plugin-store">
     <div class="store-hero">
       <h1 class="store-title">插件商店</h1>
-      <p class="store-count">当前共有 {{ entries.length }} 个插件与主题</p>
+      <p class="store-count" v-if="loadState === 'ok'">当前共有 {{ entries.length }} 个插件与主题</p>
+      <p class="store-count" v-else-if="loadState === 'loading'">插件数据加载中…</p>
+      <p class="store-count" v-else>插件数据加载失败 <button class="act" style="margin-left:8px" onclick="location.reload()">重试</button></p>
       <p class="store-disclaimer">
         官方插件经过审核与长期稳定性验证；第三方插件由作者自己签名，收录前经人工审核，
         但<strong>官方不对第三方的稳定性与安全性负责</strong>，安装时请核对签名指纹。

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /** 构建前从插件仓库拉取最新的 registry.json（插件商店的单一事实来源）。
- *  本地运行时自动使用管理台配置里的代理；Netlify/CI 上直连。 */
+ *  用 GitHub API（contents）而非 raw：raw 的 CDN 有缓存滞后，API 永远权威。
+ *  本地运行自动带管理台配置的 token 和代理；Netlify/CI 上匿名直连。 */
 import { writeFileSync, existsSync, readFileSync, copyFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 import { join, dirname } from 'node:path'
@@ -9,7 +10,6 @@ import process from 'node:process'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const out = join(here, '..', 'docs', 'plugins', 'registry.json')
-// 用 GitHub API（contents）而非 raw：raw 的 CDN 有缓存滞后，API 永远权威
 const URL_ = 'https://api.github.com/repos/inoryxin/QixinBot-go-plugins/contents/registry.json'
 
 let proxy = ''

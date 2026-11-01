@@ -107,6 +107,8 @@ export default defineConfig({
     },
   },
 
+  sitemap: { hostname: 'https://bot.inory.xin' },
+
   markdown: {
     lineNumbers: false,
     config(md) {
