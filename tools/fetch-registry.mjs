@@ -9,8 +9,8 @@ import process from 'node:process'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const out = join(here, '..', 'docs', 'plugins', 'registry.json')
-// 加时间戳参数穿透 CDN 缓存，确保每次构建拿到最新 registry
-const URL_ = 'https://raw.githubusercontent.com/inoryxin/QixinBot-go-plugins/main/registry.json?t=' + Date.now()
+// 用 GitHub API（contents）而非 raw：raw 的 CDN 有缓存滞后，API 永远权威
+const URL_ = 'https://api.github.com/repos/inoryxin/QixinBot-go-plugins/contents/registry.json'
 
 let proxy = ''
 try {
@@ -24,7 +24,8 @@ let parsed = null
 for (let i = 1; i <= 3 && !parsed; i++) {
   try {
     const data = execSync(`curl -sL -m 60 ${p} "${URL_}"`, { maxBuffer: 16 * 1024 * 1024 })
-    const j = JSON.parse(data.toString('utf8'))
+    const d = JSON.parse(data.toString('utf8'))
+    const j = JSON.parse(Buffer.from(d.content, 'base64').toString('utf8'))
     if (!Array.isArray(j)) throw new Error('registry 格式不对')
     parsed = j
     writeFileSync(out, JSON.stringify(j, null, 2) + '\n')
