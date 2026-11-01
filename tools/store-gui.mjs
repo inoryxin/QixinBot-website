@@ -551,9 +551,12 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ...deployState, log: deployState.log })
     }
     if (url.pathname === '/api/sync-all' && req.method === 'POST') {
-      // 一键同步：触发两仓库的 Gitea→GitHub 镜像立即同步 + 官网重新部署
+      // 一键同步：触发插件仓库的 Gitea→GitHub 镜像立即同步 + 官网重新部署
+      // 网站仓库绝不走镜像同步：Gitea 的网站副本是被动镜像，强制同步会把
+      // Gitea 的旧历史盖回 GitHub（曾把线上回退到旧版本）。网站以 GitHub 为准，
+      // 改站时同时推送 github 与 gitea 两个远端保持一致。
       const mirrors = []
-      for (const r of [CFG.pluginsRepo, 'QixinBot-website']) {
+      for (const r of [CFG.pluginsRepo]) {
         const res2 = await gitea(`/repos/${CFG.giteaOwner}/${r}/push_mirrors-sync`, { method: 'POST' })
         mirrors.push({ repo: r, ok: res2.status < 300 })
       }
