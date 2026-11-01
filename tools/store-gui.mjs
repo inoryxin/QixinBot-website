@@ -195,7 +195,7 @@ async function doReview(platform, num) {
   checks.push({ ok: (fields['插件 ID'] ?? '') === scan.man.id, label: `插件 ID 一致（issue=${fields['插件 ID'] ?? '—'} / 包=${scan.man.id ?? '—'}）` })
   checks.push({ ok: !!fields['签名公钥或指纹'], label: '已提交签名公钥/指纹' })
   checks.push({ ok: !!fields['源码仓库地址'], label: '已填源码仓库' })
-  checks.push({ ok: CAT[fields['分类']] != null, label: `分类有效（${fields['分类'] ?? '—'}）` })
+  checks.push({ ok: catMap()[fields['分类']] != null, label: `分类有效（${fields['分类'] ?? '—'}）` })
   checks.push({ ok: scan.flags.length === 0, label: scan.flags.length ? `可疑模式 ${scan.flags.length} 项待人工确认` : '安全扫描无可疑模式' })
   const concerns = checks.filter((c) => !c.ok)
   report.checks = checks
