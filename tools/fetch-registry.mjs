@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** 构建前从插件仓库拉取最新的 registry.json（插件商店的单一事实来源）。
  *  本地运行时自动使用管理台配置里的代理；Netlify/CI 上直连。 */
-import { writeFileSync, existsSync, readFileSync } from 'node:fs'
+import { writeFileSync, existsSync, readFileSync, copyFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -13,11 +13,17 @@ const out = join(here, '..', 'docs', 'plugins', 'registry.json')
 const URL_ = 'https://api.github.com/repos/inoryxin/QixinBot-go-plugins/contents/registry.json'
 
 let proxy = ''
+let ghToken = ''
 try {
   const cfgPath = join(here, 'gui-config.json')
-  if (existsSync(cfgPath)) proxy = JSON.parse(readFileSync(cfgPath, 'utf8')).proxy ?? ''
+  if (existsSync(cfgPath)) {
+    const cfg = JSON.parse(readFileSync(cfgPath, 'utf8'))
+    proxy = cfg.proxy ?? ''
+    ghToken = cfg.githubToken ?? ''
+  }
 } catch {}
-const p = proxy ? `-x ${proxy}` : ''
+const auth = ghToken ? `-H "Authorization: Bearer ${ghToken}"` : ''
+const p = `${proxy ? `-x ${proxy}` : ''} ${auth}`
 
 const FALLBACK = join(here, '..', 'docs', 'plugins', 'registry.fallback.json')
 let parsed = null
