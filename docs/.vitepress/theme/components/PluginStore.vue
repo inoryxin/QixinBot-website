@@ -90,8 +90,8 @@ const counts = computed(() => {
   for (const chip of chipList.value) {
     c[chip.key] =
       chip.key === 'all'
-        ? entries.length
-        : entries.filter((e) => quickMatch(e, chip.key)).length
+        ? entries.value.length
+        : entries.value.filter((e) => quickMatch(e, chip.key)).length
   }
   return c
 })
@@ -104,7 +104,7 @@ const SORTS: Record<string, string> = {
 }
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase()
-  const list = entries
+  const list = entries.value
     .filter((e) => quickMatch(e, activeCategory.value))
     .filter((e) => {
       if (!q) return true
