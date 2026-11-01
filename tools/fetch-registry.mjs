@@ -22,6 +22,8 @@ try {
     ghToken = cfg.githubToken ?? ''
   }
 } catch {}
+// Actions 环境优先用自动 token（避免共享 IP 的匿名限流）
+ghToken = process.env.GITHUB_TOKEN ?? ghToken
 const auth = ghToken ? `-H "Authorization: Bearer ${ghToken}"` : ''
 const p = `${proxy ? `-x ${proxy}` : ''} ${auth}`
 
