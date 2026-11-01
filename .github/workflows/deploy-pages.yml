@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # registry 真源在插件仓库，这边收不到它的 push 事件；
+  # 定时重建让公网最迟 30 分钟自动同步一次（GUI 删改、issue 审核通过都走这条）
+  schedule:
+    - cron: '*/30 * * * *'
 
 permissions:
   contents: read
