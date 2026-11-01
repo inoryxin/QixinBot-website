@@ -9,7 +9,8 @@ import process from 'node:process'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const out = join(here, '..', 'docs', 'plugins', 'registry.json')
-const URL_ = 'https://raw.githubusercontent.com/inoryxin/QixinBot-go-plugins/main/registry.json'
+// 加时间戳参数穿透 CDN 缓存，确保每次构建拿到最新 registry
+const URL_ = 'https://raw.githubusercontent.com/inoryxin/QixinBot-go-plugins/main/registry.json?t=' + Date.now()
 
 let proxy = ''
 try {
