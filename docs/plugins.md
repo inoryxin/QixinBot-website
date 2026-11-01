@@ -4,7 +4,12 @@ pageClass: plugin-store-page
 title: 插件商店
 ---
 
-<PluginStore />
+<ClientOnly>
+  <PluginStore />
+  <template #fallback>
+    <p style="padding:32px 0;text-align:center;color:var(--vp-c-text-2)">插件商店加载中…</p>
+  </template>
+</ClientOnly>
 
 ## 安装方式
 
