@@ -7,7 +7,10 @@ export default defineConfig({
   title: 'QixinBot',
   description:
     '基于 OneBot 11 的机器人框架：宿主用 Go，插件用任意语言（独立子进程，stdio + JSON-RPC）',
-  head: [['link', { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }]],
+  head: [
+    ['link', { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }],
+    ['script', {}, `window.__errs=[];window.addEventListener('error',e=>{window.__errs.push('E:'+e.message);document.title='ERR '+window.__errs.length+': '+e.message.slice(0,60)});window.addEventListener('unhandledrejection',e=>{window.__errs.push('R:'+String(e.reason).slice(0,120));document.title='ERR '+window.__errs.length});(function(){var oe=console.error;console.error=function(){var m=[].map.call(arguments,x=>String(x&&x.stack||x&&x.message||x)).join('|').slice(0,200);window.__errs.push('C:'+m);document.title='ERR '+window.__errs.length+': '+m.slice(0,60);oe.apply(console,arguments)}})();`],
+  ],
 
   themeConfig: {
     logo: '/logo.png',
