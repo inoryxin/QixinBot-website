@@ -9,11 +9,8 @@
     "gui": "node tools/store-gui.mjs"
   },
   "devDependencies": {
-    "blakejs": "^1.2.1",
     "esbuild": "^0.28.2",
-    "netlify-cli": "^27.16.1",
     "postject": "^1.0.0-alpha.6",
-    "tweetnacl": "^1.0.3",
     "vitepress": "^1.6.3"
   }
 }
