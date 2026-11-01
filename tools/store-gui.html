@@ -172,6 +172,8 @@
         <tr><td>自动部署</td><td><label style="font-size:13px"><input type="checkbox" id="c_autoDeploy"> 保存 / 上架 / 审核通过后自动部署官网，不用再手动点</label></td></tr>
         <tr><td>Netlify token</td><td><input id="c_netlifyToken" type="password" style="width:100%" placeholder="公网站点（Netlify）部署用；不用公网可留空"></td></tr>
         <tr><td>Netlify site id</td><td><input id="c_netlifySiteId" style="width:100%"></td></tr>
+        <tr><td>插件仓库本地路径</td><td><input id="c_pluginsRepoPath" style="width:100%" placeholder="registry.json 的仓库克隆（保存时推送用）"></td></tr>
+        <tr><td>官网重建钩子</td><td><input id="c_netlifyHookUrl" style="width:100%" placeholder="Netlify build hook URL（保存后触发公网重建）"></td></tr>
       </table>
       <div class="row" style="margin-top:14px">
         <button class="primary" onclick="saveCfg()">💾 保存设置</button>
@@ -480,7 +482,7 @@ async function doUpload(yes) {
 // ---- 设置 ----
 async function loadCfg() {
   const c = await api('/api/config')
-  for (const k of ['giteaUrl', 'giteaToken', 'githubToken', 'proxy', 'giteaOwner', 'githubOwner', 'pluginsRepo', 'deployKeyPath', 'nasYamlPath', 'repoPath', 'bashPath', 'netlifyToken', 'netlifySiteId']) {
+  for (const k of ['giteaUrl', 'giteaToken', 'githubToken', 'proxy', 'giteaOwner', 'githubOwner', 'pluginsRepo', 'deployKeyPath', 'nasYamlPath', 'repoPath', 'bashPath', 'netlifyToken', 'netlifySiteId', 'pluginsRepoPath', 'netlifyHookUrl']) {
     const el = $('#c_' + k); if (el) el.value = c[k] ?? ''
   }
   const ad = $('#c_autoDeploy'); if (ad) ad.checked = !!c.autoDeploy

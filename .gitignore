@@ -5,3 +5,4 @@ docs/.vitepress/cache/
 tools/gui-config.json
 tools/sea/
 tools/.deploy_key
+docs/plugins/registry.json

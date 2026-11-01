@@ -94,13 +94,21 @@ function dl(url, useProxy) {
 }
 
 // ---------- git（website 仓库：registry 变更提交推送） ----------
+// registry 的唯一事实来源 = 插件仓库（github.com/inoryxin/QixinBot-go-plugins）。
+// 保存流程：写本地（LAN 构建输入）→ 插件仓库提交推送 → 触发官网 Netlify 重建 → LAN 重建。
+// 推送凭据走本机 git 凭据库（第一次推送会弹浏览器登录一次，之后免密）。
 function gitRegistryCommit(msg) {
-  // 仓库只有一个远程（gitea，main 跟踪它），用裸 git push 走上游；
-  // 纯分类改动时 registry.json 可能无变化，空暂存就跳过 commit 只推送
-  execSync(
-    `git add docs/plugins && (git diff --cached --quiet || git commit -m ${JSON.stringify(msg)}) && git push`,
-    { cwd: ROOT, stdio: 'pipe' },
-  )
+  const pr = CFG.pluginsRepoPath
+  if (!pr || !existsSync(pr)) throw new Error('插件仓库路径不存在（设置页 pluginsRepoPath）')
+  const g = (cmd) => execSync(cmd, { cwd: pr, stdio: 'pipe' })
+  g('git pull origin main')
+  writeFileSync(join(pr, 'registry.json'), readFileSync(REG_PATH()))
+  g('git add registry.json')
+  try { g(`git diff --cached --quiet || git commit -m ${JSON.stringify(msg)}`) } catch {}
+  g('git push origin main')
+  if (CFG.netlifyHookUrl) {
+    try { execSync(`curl -s -m 30 -X POST "${CFG.netlifyHookUrl}"`, { stdio: 'ignore' }) } catch {}
+  }
   scheduleDeploy()
 }
 
