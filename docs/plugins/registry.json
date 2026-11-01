@@ -516,5 +516,25 @@
     "package": "repo://QixinBot-go-plugins/raw/main/packages/xueran.anzu",
     "fingerprint": null,
     "tags": []
+  },
+  {
+    "id": "hello-demo",
+    "name": "测试小助手",
+    "tier": "third-party",
+    "kind": "plugin",
+    "category": "tool",
+    "description": "审核流程演示用的小插件：收到 /hello 就回一句 hello",
+    "language": "Node.js",
+    "deps": [
+      "无"
+    ],
+    "permissions": [],
+    "observe": false,
+    "version": "0.1.0",
+    "author": "inoryxin",
+    "repo": "https://github.com/inoryxin/QixinBot-go-plugins",
+    "package": "https://bot.inory.xin/hello-demo.anzu",
+    "fingerprint": "SHA256:TEST0000000000000000000000000000000000000000（测试指纹）",
+    "tags": []
   }
 ]
